@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Phòng Tranh 3D Tương Tác Giáo Dục</title>
+  <style>
+    body { margin: 0; overflow: hidden; font-family: 'Segoe UI', sans-serif; background: #111; user-select: none; -webkit-user-select: none; }
+    
+    #hud {
+      position: fixed; top: 15px; left: 15px; color: #fff;
+      background: rgba(0, 0, 0, 0.75); padding: 10px 15px;
+      border-radius: 8px; pointer-events: none; z-index: 10;
+      border-left: 4px solid #00d2ff; font-size: 13px; line-height: 1.5;
+    }
+    
+    #crosshair {
+      position: fixed; top: 50%; left: 50%; width: 8px; height: 8px;
+      background: rgba(255, 255, 255, 0.6); border-radius: 50%;
+      transform: translate(-50%, -50%); pointer-events: none; z-index: 10;
+    }
+
+    /* Bàn phím ảo di động */
+    #mobile-controls {
+      position: fixed; bottom: 20px; left: 20px; width: 130px; height: 130px;
+      z-index: 20; display: grid; grid-template-columns: repeat(3, 1fr);
+      grid-template-rows: repeat(3, 1fr); gap: 4px; touch-action: none;
+    }
+    .ctrl-btn {
+      background: rgba(255, 255, 255, 0.25); border: 1px solid rgba(255, 255, 255, 0.4);
+      color: white; font-size: 18px; border-radius: 8px; display: flex;
+      align-items: center; justify-content: center; cursor: pointer;
+    }
+    .ctrl-btn:active, .ctrl-btn.active { background: rgba(0, 210, 255, 0.7); }
+    #btn-up    { grid-column: 2; grid-row: 1; }
+    #btn-left  { grid-column: 1; grid-row: 2; }
+    #btn-right { grid-column: 3; grid-row: 2; }
+    #btn-down  { grid-column: 2; grid-row: 3; }
+
+    #mobile-hint {
+      position: fixed; bottom: 20px; right: 20px; color: rgba(255,255,255,0.7);
+      background: rgba(0,0,0,0.6); padding: 8px 12px; border-radius: 6px;
+      font-size: 12px; pointer-events: none; text-align: right; z-index: 10;
+    }
+
+    /* Hộp thoại Modal xem tranh */
+    #modal {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85);
+      z-index: 100; justify-content: center; align-items: center; padding: 15px;
+    }
+    .modal-content {
+      background: #fff; color: #222; max-width: 800px; width: 100%;
+      border-radius: 12px; display: flex; flex-wrap: wrap; overflow: hidden;
+      box-shadow: 0 15px 40px rgba(0,0,0,0.5); position: relative; max-height: 85vh;
+    }
+    .modal-img-box { width: 50%; min-width: 280px; background: #000; display: flex; align-items: center; justify-content: center; position: relative; }
+    .modal-img { width: 100%; height: 100%; object-fit: contain; max-height: 75vh; }
+    .modal-info { width: 50%; box-sizing: border-box; padding: 25px; display: flex; flex-direction: column; justify-content: space-between; overflow-y: auto; max-height: 85vh; }
+    .modal-info h2 { margin: 0 0 5px; color: #1a73e8; font-size: 20px; }
+    .modal-info h4 { margin: 0 0 12px; color: #555; font-weight: normal; font-size: 14px; }
+    .modal-info p { line-height: 1.6; color: #333; font-size: 14px; margin-bottom: 15px; }
+    
+    .interactive-features { display: flex; flex-direction: column; gap: 10px; margin-top: auto; }
+    audio { width: 100%; height: 36px; }
+    .external-link-btn {
+      display: none; background: #1a73e8; color: white; text-align: center;
+      padding: 10px 15px; border-radius: 6px; text-decoration: none; font-weight: 600;
+      font-size: 14px; transition: background 0.2s;
+    }
+    .external-link-btn:hover { background: #1557b0; }
+
+    .close-btn {
+      position: absolute; top: 10px; right: 15px; font-size: 28px;
+      cursor: pointer; color: #888; font-weight: bold; z-index: 10;
+    }
+
+    @media (max-width: 768px) {
+      .modal-content { flex-direction: column; max-height: 90vh; }
+      .modal-img-box { width: 100%; height: 240px; }
+      .modal-info { width: 100%; }
+      #hud { font-size: 11px; padding: 8px 10px; max-width: 200px; }
+    }
+  </style>
+</head>
+<body>
+
+  <div id="hud">
+    <b>PHÒNG TRANH 3D SÁNG TẠO</b><br>
+    • Di chuyển: W,A,S,D hoặc phím ảo<br>
+    • Xoay góc nhìn: Kéo/Vuốt màn hình<br>
+    • Xem chi tiết: Nhấp vào tranh
+  </div>
+  <div id="crosshair"></div>
+
+  <div id="mobile-controls">
+    <div class="ctrl-btn" id="btn-up">&#9650;</div>
+    <div class="ctrl-btn" id="btn-left">&#9664;</div>
+    <div class="ctrl-btn" id="btn-right">&#9654;</div>
+    <div class="ctrl-btn" id="btn-down">&#9660;</div>
+  </div>
+
+  <div id="mobile-hint">Vuốt để đổi góc nhìn<br>Bấm phím để đi chuyển</div>
+
+  <div id="modal">
+    <div class="modal-content">
+      <span class="close-btn" onclick="closeModal()">&times;</span>
+      <div class="modal-img-box">
+        <img id="m-img" class="modal-img" src="" alt="Tác phẩm">
+      </div>
+      <div class="modal-info">
+        <div>
+          <h2 id="m-title">Tên tác phẩm</h2>
+          <h4 id="m-author">Tác giả</h4>
+          <p id="m-desc">Mô tả</p>
+        </div>
+        
+        <div class="interactive-features">
+          <div id="audio-container" style="display:none;">
+            <label style="font-size: 12px; color: #666; font-weight: bold; display: block; margin-bottom: 4px;">🎧 Thuyết minh của tác giả:</label>
+            <audio id="m-audio" controls></audio>
+          </div>
+          <a id="m-link" class="external-link-btn" href="#" target="_blank">🔗 Mở liên kết học tập</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="data.js"></script>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
+      }
+    }
+  </script>
+
+  <script type="module">
+    import * as THREE from 'three';
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x1a1a2e);
+
+    const camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 100);
+    camera.position.set(0, 2.2, 20);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    document.body.appendChild(renderer.domElement);
+
+    scene.add(new THREE.AmbientLight(0xffffff, 0.85));
+    const dirLight = new THREE.DirectionalLight(0xfff5e6, 0.6);
+    dirLight.position.set(10, 20, 15);
+    scene.add(dirLight);
+
+    const floorMat = new THREE.MeshStandardMaterial({ color: 0x2b2d42, roughness: 0.4 });
+    const floor = new THREE.Mesh(new THREE.PlaneGeometry(30, 46), floorMat);
+    floor.rotation.x = -Math.PI / 2;
+    scene.add(floor);
+
+    const wallMat = new THREE.MeshStandardMaterial({ color: 0xf8f9fa, roughness: 0.9 });
+    function createWall(w, h, d, x, y, z) {
+      const wall = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), wallMat);
+      wall.position.set(x, y, z);
+      scene.add(wall);
+    }
+    createWall(0.5, 6, 46, -15, 3, 0);  
+    createWall(0.5, 6, 46, 15, 3, 0);   
+    createWall(30, 6, 0.5, 0, 3, -23);  
+    createWall(30, 6, 0.5, 0, 3, 23);   
+    createWall(0.6, 5, 14, -5, 2.5, -2); 
+    createWall(0.6, 5, 14, 5, 2.5, -2);  
+
+    const artworkMeshes = [];
+    const texLoader = new THREE.TextureLoader();
+
+    function createFallbackTexture(id, title) {
+      const canvas = document.createElement('canvas');
+      canvas.width = 512; canvas.height = 384;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = `hsl(${(id * 28) % 360}, 65%, 45%)`;
+      ctx.fillRect(0, 0, 512, 384);
+      ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 14;
+      ctx.strokeRect(20, 20, 472, 344);
+      ctx.fillStyle = '#ffffff'; ctx.font = 'bold 42px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(`TÁC PHẨM #${id}`, 256, 180);
+      ctx.font = '24px sans-serif';
+      ctx.fillText(title, 256, 235);
+      return new THREE.CanvasTexture(canvas);
+    }
+
+    function hangPainting(data, x, y, z, rotY) {
+      const frame = new THREE.Mesh(
+        new THREE.BoxGeometry(2.3, 1.75, 0.08),
+        new THREE.MeshStandardMaterial({ color: 0x222222 })
+      );
+      frame.position.set(x, y, z);
+      frame.rotation.y = rotY;
+      scene.add(frame);
+
+      const fallbackTex = createFallbackTexture(data.id, data.title);
+      const artMat = new THREE.MeshBasicMaterial({ map: fallbackTex });
+      
+      texLoader.load(data.image, (tex) => {
+        artMat.map = tex;
+        artMat.needsUpdate = true;
+      }, undefined, () => {});
+
+      const painting = new THREE.Mesh(new THREE.PlaneGeometry(2.1, 1.55), artMat);
+      painting.position.z = 0.05;
+      painting.userData = data;
+      frame.add(painting);
+      artworkMeshes.push(painting);
+    }
+
+    let idx = 0;
+    for (let i = 0; i < 12; i++) hangPainting(artworksData[idx++], -14.7, 2.5, 18 - i * 3.3, Math.PI / 2);
+    for (let i = 0; i < 12; i++) hangPainting(artworksData[idx++], 14.7, 2.5, 18 - i * 3.3, -Math.PI / 2);
+    for (let i = 0; i < 5; i++) hangPainting(artworksData[idx++], -10 + i * 5, 2.5, -22.7, 0);
+    for (let i = 0; i < 4; i++) hangPainting(artworksData[idx++], -5.35, 2.4, 3 - i * 3.3, -Math.PI / 2);
+    for (let i = 0; i < 4; i++) hangPainting(artworksData[idx++], -4.65, 2.4, 3 - i * 3.3, Math.PI / 2);
+    for (let i = 0; i < 4; i++) hangPainting(artworksData[idx++], 4.65, 2.4, 3 - i * 3.3, -Math.PI / 2);
+    for (let i = 0; i < 4; i++) hangPainting(artworksData[idx++], 5.35, 2.4, 3 - i * 3.3, Math.PI / 2);
+
+    const keys = {};
+    window.addEventListener('keydown', (e) => keys[e.code] = true);
+    window.addEventListener('keyup', (e) => keys[e.code] = false);
+
+    const setupVirtualBtn = (id, code) => {
+      const btn = document.getElementById(id);
+      const pressOn = (e) => { e.preventDefault(); keys[code] = true; btn.classList.add('active'); };
+      const pressOff = (e) => { e.preventDefault(); keys[code] = false; btn.classList.remove('active'); };
+      btn.addEventListener('mousedown', pressOn);
+      btn.addEventListener('mouseup', pressOff);
+      btn.addEventListener('mouseleave', pressOff);
+      btn.addEventListener('touchstart', pressOn, {passive: false});
+      btn.addEventListener('touchend', pressOff, {passive: false});
+    };
+    setupVirtualBtn('btn-up', 'KeyW');
+    setupVirtualBtn('btn-down', 'KeyS');
+    setupVirtualBtn('btn-left', 'KeyA');
+    setupVirtualBtn('btn-right', 'KeyD');
+
+    let isDragging = false, prevX = 0, prevY = 0, yaw = 0, pitch = 0;
+
+    window.addEventListener('mousedown', (e) => { isDragging = true; prevX = e.clientX; prevY = e.clientY; });
+    window.addEventListener('mouseup', () => isDragging = false);
+    window.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+      yaw -= (e.clientX - prevX) * 0.004;
+      pitch = Math.max(-0.5, Math.min(0.5, pitch - (e.clientY - prevY) * 0.003));
+      prevX = e.clientX; prevY = e.clientY;
+      camera.rotation.order = 'YXZ';
+      camera.rotation.y = yaw;
+      camera.rotation.x = pitch;
+    });
+
+    window.addEventListener('touchstart', (e) => {
+      if (e.touches.length === 1 && !e.target.closest('#mobile-controls') && !e.target.closest('#modal')) {
+        isDragging = true;
+        prevX = e.touches[0].clientX;
+        prevY = e.touches[0].clientY;
+      }
+    }, {passive: true});
+
+    window.addEventListener('touchend', () => isDragging = false, {passive: true});
+
+    window.addEventListener('touchmove', (e) => {
+      if (!isDragging || e.touches.length !== 1) return;
+      const clientX = e.touches[0].clientX;
+      const clientY = e.touches[0].clientY;
+      yaw -= (clientX - prevX) * 0.005;
+      pitch = Math.max(-0.5, Math.min(0.5, pitch - (clientY - prevY) * 0.004));
+      prevX = clientX; prevY = clientY;
+      camera.rotation.order = 'YXZ';
+      camera.rotation.y = yaw;
+      camera.rotation.x = pitch;
+    }, {passive: true});
+
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+
+    function handleSelect(clientX, clientY) {
+      mouse.x = (clientX / window.innerWidth) * 2 - 1;
+      mouse.y = -(clientY / window.innerHeight) * 2 + 1;
+      raycaster.setFromCamera(mouse, camera);
+
+      const intersects = raycaster.intersectObjects(artworkMeshes);
+      if (intersects.length > 0 && intersects[0].distance < 16) {
+        const info = intersects[0].object.userData;
+        document.getElementById('m-title').innerText = info.title;
+        document.getElementById('m-author').innerText = "Tác giả: " + info.author;
+        document.getElementById('m-desc').innerText = info.description;
+        document.getElementById('m-img').src = info.image;
+
+        const audioContainer = document.getElementById('audio-container');
+        const audioElement = document.getElementById('m-audio');
+        if (info.audio && info.audio.trim() !== "") {
+          audioElement.src = info.audio;
+          audioContainer.style.display = 'block';
+        } else {
+          audioElement.pause();
+          audioContainer.style.display = 'none';
+        }
+
+        const linkBtn = document.getElementById('m-link');
+        if (info.externalLink && info.externalLink.trim() !== "") {
+          linkBtn.href = info.externalLink;
+          linkBtn.innerText = "🔗 " + (info.linkButtonText || "Mở liên kết học tập");
+          linkBtn.style.display = 'block';
+        } else {
+          linkBtn.style.display = 'none';
+        }
+
+        document.getElementById('modal').style.display = 'flex';
+      }
+    }
+
+    window.addEventListener('click', (e) => {
+      if (e.target.closest('#mobile-controls') || e.target.closest('#modal')) return;
+      handleSelect(e.clientX, e.clientY);
+    });
+
+    window.closeModal = () => {
+      document.getElementById('modal').style.display = 'none';
+      document.getElementById('m-audio').pause();
+    };
+
+    function animate() {
+      requestAnimationFrame(animate);
+      const speed = 0.14;
+      const forward = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
+      const right = new THREE.Vector3(1, 0, 0).applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
+
+      if (keys['KeyW'] || keys['ArrowUp']) camera.position.addScaledVector(forward, speed);
+      if (keys['KeyS'] || keys['ArrowDown']) camera.position.addScaledVector(forward, -speed);
+      if (keys['KeyA'] || keys['ArrowLeft']) camera.position.addScaledVector(right, -speed);
+      if (keys['KeyD'] || keys['ArrowRight']) camera.position.addScaledVector(right, speed);
+
+      camera.position.x = Math.max(-13.8, Math.min(13.8, camera.position.x));
+      camera.position.z = Math.max(-21.5, Math.min(21.5, camera.position.z));
+
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+  </script>
+</body>
+</html>
