@@ -14,7 +14,6 @@
       border-left: 4px solid #00d2ff; font-size: 13px; line-height: 1.5;
     }
     
-    /* Nút đăng nhập giáo viên ở góc trên bên phải */
     #teacher-login-btn {
       position: fixed; top: 15px; right: 15px; z-index: 20;
       background: #ffc107; color: #222; border: none; padding: 8px 14px;
@@ -52,7 +51,6 @@
       font-size: 12px; pointer-events: none; text-align: right; z-index: 10;
     }
 
-    /* Modal hiển thị & Chỉnh sửa chi tiết tranh */
     #modal {
       display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85);
       z-index: 100; justify-content: center; align-items: center; padding: 15px;
@@ -65,7 +63,6 @@
     .modal-img-box { width: 45%; min-width: 280px; background: #000; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 15px; box-sizing: border-box; }
     .modal-img { width: 100%; height: 50vh; object-fit: contain; }
     
-    /* Vùng công cụ chỉ dành cho Giáo viên */
     .teacher-tools {
       display: none; width: 100%; margin-top: 15px; flex-direction: column; gap: 8px;
     }
@@ -118,7 +115,6 @@
     • Click vào tranh để xem chi tiết
   </div>
 
-  <!-- Nút đăng nhập dành cho Giáo viên -->
   <button id="teacher-login-btn" onclick="toggleTeacherMode()">🔒 Giáo viên Quản trị</button>
 
   <div id="crosshair"></div>
@@ -132,32 +128,26 @@
 
   <div id="mobile-hint">Vuốt để đổi góc nhìn<br>Bấm phím để đi chuyển</div>
 
-  <!-- Modal Chi Tiết & Bảng Điều Khiển Của Giáo Viên -->
   <div id="modal">
     <div class="modal-content">
       <span class="close-btn" onclick="closeModal()">&times;</span>
       
-      <!-- Cột trái: Hình ảnh & Công cụ giáo viên -->
       <div class="modal-img-box">
         <img id="m-img" class="modal-img" src="" alt="Tác phẩm">
         
-        <!-- Khung công cụ chỉ hiện khi Giáo viên đăng nhập -->
         <div id="teacher-edit-box" class="teacher-tools">
           <label class="upload-btn-label" for="upload-file-input">🖼️ Thay đổi ảnh bức tranh này</label>
           <input type="file" id="upload-file-input" accept="image/*" onchange="handleImageUpload(event)">
         </div>
       </div>
 
-      <!-- Cột phải: Thông tin & Form chỉnh sửa -->
       <div class="modal-info">
-        <!-- Chế độ xem của học sinh -->
         <div id="student-view-info">
           <h2 id="m-title">Tên tác phẩm</h2>
           <h4 id="m-author">Tác giả</h4>
           <p id="m-desc">Mô tả</p>
         </div>
 
-        <!-- Form chỉnh sửa của Giáo viên -->
         <div id="teacher-form-info" class="teacher-tools" style="margin-top:0;">
           <label style="font-size:12px; font-weight:bold; color:#1a73e8;">Chỉnh sửa tiêu đề:</label>
           <input type="text" id="edit-title">
@@ -174,7 +164,6 @@
           <button class="save-btn" onclick="saveTeacherChanges()">💾 Lưu thay đổi bức tranh này</button>
         </div>
         
-        <!-- Giao diện tương tác xem cho học sinh -->
         <div class="student-view-area">
           <div id="audio-container" style="display:none;">
             <label style="font-size: 12px; color: #666; font-weight: bold; display: block; margin-bottom: 4px;">🎧 Thuyết minh:</label>
@@ -203,7 +192,7 @@
     window.toggleTeacherMode = () => {
       if (!isTeacherLoggedIn) {
         const pass = prompt("Nhập mật khẩu quản trị của giáo viên:");
-        if (pass === "123456") { // Bạn có thể đổi mật khẩu tại đây
+        if (pass === "123456") {
           isTeacherLoggedIn = true;
           const btn = document.getElementById('teacher-login-btn');
           btn.innerText = "🔓 Đang ở chế độ Giáo viên";
@@ -259,7 +248,6 @@
     const texLoader = new THREE.TextureLoader();
     const materialsMap = new Map();
 
-    // Nạp dữ liệu từ localStorage nếu có chỉnh sửa trước đó
     artworksData.forEach(item => {
       const savedData = localStorage.getItem(`artwork_data_${item.id}`);
       if (savedData) {
@@ -394,19 +382,16 @@
         const info = intersects[0].object.userData;
         currentSelectedArtwork = info;
 
-        // Hiển thị thông tin thường
         document.getElementById('m-title').innerText = info.title;
         document.getElementById('m-author').innerText = "Tác giả: " + info.author;
         document.getElementById('m-desc').innerText = info.description;
         document.getElementById('m-img').src = intersects[0].object.material.map.image ? intersects[0].object.material.map.image.src : info.image;
 
-        // Điền sẵn dữ liệu vào form chỉnh sửa của giáo viên
         document.getElementById('edit-title').value = info.title;
         document.getElementById('edit-author').value = info.author;
         document.getElementById('edit-desc').value = info.description;
         document.getElementById('edit-link').value = info.externalLink || '';
 
-        // Phân quyền hiển thị công cụ giáo viên hay học sinh
         const teacherBoxes = document.querySelectorAll('.teacher-tools');
         const studentViewInfo = document.getElementById('student-view-info');
         
@@ -418,7 +403,6 @@
           studentViewInfo.style.display = 'block';
         }
 
-        // Xử lý Audio & Link
         const audioContainer = document.getElementById('audio-container');
         const audioElement = document.getElementById('m-audio');
         if (info.audio && info.audio.trim() !== "") {
@@ -442,7 +426,6 @@
       }
     }
 
-    // Giáo viên lưu thay đổi thông tin tranh
     window.saveTeacherChanges = () => {
       if (!currentSelectedArtwork) return;
       
@@ -451,7 +434,6 @@
       currentSelectedArtwork.description = document.getElementById('edit-desc').value;
       currentSelectedArtwork.externalLink = document.getElementById('edit-link').value;
 
-      // Lưu vào localStorage
       localStorage.setItem(`artwork_data_${currentSelectedArtwork.id}`, JSON.stringify({
         title: currentSelectedArtwork.title,
         author: currentSelectedArtwork.author,
@@ -463,7 +445,6 @@
       closeModal();
     };
 
-    // Giáo viên thay đổi ảnh tranh
     window.handleImageUpload = (event) => {
       const file = event.target.files[0];
       if (!file || !currentSelectedArtwork) return;
@@ -507,7 +488,7 @@
       if (keys['KeyW'] || keys['ArrowUp']) camera.position.addScaledVector(forward, speed);
       if (keys['KeyS'] || keys['ArrowDown']) camera.position.addScaledVector(forward, -speed);
       if (keys['KeyA'] || keys['ArrowLeft']) camera.position.addScaledVector(right, -speed);
-      if, (keys['KeyD'] || keys['ArrowRight']) camera.position.addScaledVector(right, speed);
+      if (keys['KeyD'] || keys['ArrowRight']) camera.position.addScaledVector(right, speed);
 
       camera.position.x = Math.max(-13.8, Math.min(13.8, camera.position.x));
       camera.position.z = Math.max(-21.5, Math.min(21.5, camera.position.z));
