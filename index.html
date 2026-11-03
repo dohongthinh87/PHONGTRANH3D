@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Phòng Tranh 3D - Quản Trị Giáo Viên</title>
+  <title>Phòng Tranh 3D - Triển Lãm Học Tập</title>
   <style>
     body { margin: 0; overflow: hidden; font-family: 'Segoe UI', sans-serif; background: #111; user-select: none; -webkit-user-select: none; }
     
@@ -69,16 +69,11 @@
     .teacher-tools input, .teacher-tools textarea {
       width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; font-size: 13px;
     }
-    .upload-btn-label {
-      background: #28a745; color: white; padding: 8px; border-radius: 6px;
-      font-size: 13px; font-weight: 600; cursor: pointer; text-align: center; display: block;
-    }
     .save-btn {
       background: #1a73e8; color: white; border: none; padding: 10px; border-radius: 6px;
       font-weight: bold; cursor: pointer; font-size: 14px; text-align: center;
     }
     .save-btn:hover { background: #1557b0; }
-    #upload-file-input { display: none; }
 
     .modal-info { width: 55%; box-sizing: border-box; padding: 25px; display: flex; flex-direction: column; justify-content: space-between; overflow-y: auto; max-height: 90vh; }
     .modal-info h2 { margin: 0 0 5px; color: #1a73e8; font-size: 20px; }
@@ -134,11 +129,6 @@
       
       <div class="modal-img-box">
         <img id="m-img" class="modal-img" src="" alt="Tác phẩm">
-        
-        <div id="teacher-edit-box" class="teacher-tools">
-          <label class="upload-btn-label" for="upload-file-input">🖼️ Thay đổi ảnh bức tranh này</label>
-          <input type="file" id="upload-file-input" accept="image/*" onchange="handleImageUpload(event)">
-        </div>
       </div>
 
       <div class="modal-info">
@@ -161,7 +151,7 @@
           <label style="font-size:12px; font-weight:bold; color:#1a73e8;">Link bài tập / Quiz (nếu có):</label>
           <input type="text" id="edit-link" placeholder="https://...">
 
-          <button class="save-btn" onclick="saveTeacherChanges()">💾 Lưu thay đổi bức tranh này</button>
+          <button class="save-btn" onclick="saveTeacherChanges()">💾 Lưu thay đổi thông tin</button>
         </div>
         
         <div class="student-view-area">
@@ -197,7 +187,7 @@
           const btn = document.getElementById('teacher-login-btn');
           btn.innerText = "🔓 Đang ở chế độ Giáo viên";
           btn.classList.add('logged-in');
-          alert("Đăng nhập quản trị thành công! Bây giờ bạn có thể click vào bất kỳ bức tranh nào để sửa thông tin hoặc thay ảnh.");
+          alert("Đăng nhập thành công! Click vào tranh để sửa tiêu đề, tên tác giả hoặc mô tả.");
         } else if (pass !== null) {
           alert("Mật khẩu không đúng!");
         }
@@ -246,8 +236,8 @@
 
     const artworkMeshes = [];
     const texLoader = new THREE.TextureLoader();
-    const materialsMap = new Map();
 
+    // Đồng bộ dữ liệu chỉnh sửa của giáo viên từ bộ nhớ chung nếu có
     artworksData.forEach(item => {
       const savedData = localStorage.getItem(`artwork_data_${item.id}`);
       if (savedData) {
@@ -287,10 +277,8 @@
       const fallbackTex = createFallbackTexture(data.id, data.title);
       const artMat = new THREE.MeshBasicMaterial({ map: fallbackTex });
       
-      const savedCustomImg = localStorage.getItem(`artwork_img_${data.id}`);
-      const imageSrc = savedCustomImg || data.image;
-
-      texLoader.load(imageSrc, (tex) => {
+      // Tải ảnh trực tiếp từ thư mục images/ trên GitHub theo đúng tên file trong data.js
+      texLoader.load(data.image, (tex) => {
         artMat.map = tex;
         artMat.needsUpdate = true;
       }, undefined, () => {});
@@ -301,7 +289,6 @@
       frame.add(painting);
 
       artworkMeshes.push(painting);
-      materialsMap.set(data.id, artMat);
     }
 
     let idx = 0;
@@ -443,29 +430,6 @@
 
       alert(`Đã lưu thành công thông tin cho Tác phẩm #${currentSelectedArtwork.id}!`);
       closeModal();
-    };
-
-    window.handleImageUpload = (event) => {
-      const file = event.target.files[0];
-      if (!file || !currentSelectedArtwork) return;
-
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        const base64Image = e.target.result;
-        document.getElementById('m-img').src = base64Image;
-
-        texLoader.load(base64Image, (newTex) => {
-          const mat = materialsMap.get(currentSelectedArtwork.id);
-          if (mat) {
-            mat.map = newTex;
-            mat.needsUpdate = true;
-          }
-        });
-
-        localStorage.setItem(`artwork_img_${currentSelectedArtwork.id}`, base64Image);
-        alert(`Đã cập nhật ảnh mới cho Tác phẩm #${currentSelectedArtwork.id}!`);
-      };
-      reader.readAsDataURL(file);
     };
 
     window.addEventListener('click', (e) => {
