@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Phòng Tranh 3D Tương Tác Giáo Dục</title>
+  <title>Phòng Tranh 3D - Quản Trị Giáo Viên</title>
   <style>
     body { margin: 0; overflow: hidden; font-family: 'Segoe UI', sans-serif; background: #111; user-select: none; -webkit-user-select: none; }
     
@@ -14,13 +14,22 @@
       border-left: 4px solid #00d2ff; font-size: 13px; line-height: 1.5;
     }
     
+    /* Nút đăng nhập giáo viên ở góc trên bên phải */
+    #teacher-login-btn {
+      position: fixed; top: 15px; right: 15px; z-index: 20;
+      background: #ffc107; color: #222; border: none; padding: 8px 14px;
+      border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 13px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.3); transition: background 0.2s;
+    }
+    #teacher-login-btn:hover { background: #e0a800; }
+    #teacher-login-btn.logged-in { background: #28a745; color: white; }
+
     #crosshair {
       position: fixed; top: 50%; left: 50%; width: 8px; height: 8px;
       background: rgba(255, 255, 255, 0.6); border-radius: 50%;
       transform: translate(-50%, -50%); pointer-events: none; z-index: 10;
     }
 
-    /* Bàn phím ảo di động */
     #mobile-controls {
       position: fixed; bottom: 20px; left: 20px; width: 130px; height: 130px;
       z-index: 20; display: grid; grid-template-columns: repeat(3, 1fr);
@@ -43,42 +52,60 @@
       font-size: 12px; pointer-events: none; text-align: right; z-index: 10;
     }
 
-    /* Hộp thoại Modal xem tranh */
+    /* Modal hiển thị & Chỉnh sửa chi tiết tranh */
     #modal {
       display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85);
       z-index: 100; justify-content: center; align-items: center; padding: 15px;
     }
     .modal-content {
-      background: #fff; color: #222; max-width: 800px; width: 100%;
+      background: #fff; color: #222; max-width: 850px; width: 100%;
       border-radius: 12px; display: flex; flex-wrap: wrap; overflow: hidden;
-      box-shadow: 0 15px 40px rgba(0,0,0,0.5); position: relative; max-height: 85vh;
+      box-shadow: 0 15px 40px rgba(0,0,0,0.5); position: relative; max-height: 90vh;
     }
-    .modal-img-box { width: 50%; min-width: 280px; background: #000; display: flex; align-items: center; justify-content: center; position: relative; }
-    .modal-img { width: 100%; height: 100%; object-fit: contain; max-height: 75vh; }
-    .modal-info { width: 50%; box-sizing: border-box; padding: 25px; display: flex; flex-direction: column; justify-content: space-between; overflow-y: auto; max-height: 85vh; }
+    .modal-img-box { width: 45%; min-width: 280px; background: #000; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 15px; box-sizing: border-box; }
+    .modal-img { width: 100%; height: 50vh; object-fit: contain; }
+    
+    /* Vùng công cụ chỉ dành cho Giáo viên */
+    .teacher-tools {
+      display: none; width: 100%; margin-top: 15px; flex-direction: column; gap: 8px;
+    }
+    .teacher-tools input, .teacher-tools textarea {
+      width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; font-size: 13px;
+    }
+    .upload-btn-label {
+      background: #28a745; color: white; padding: 8px; border-radius: 6px;
+      font-size: 13px; font-weight: 600; cursor: pointer; text-align: center; display: block;
+    }
+    .save-btn {
+      background: #1a73e8; color: white; border: none; padding: 10px; border-radius: 6px;
+      font-weight: bold; cursor: pointer; font-size: 14px; text-align: center;
+    }
+    .save-btn:hover { background: #1557b0; }
+    #upload-file-input { display: none; }
+
+    .modal-info { width: 55%; box-sizing: border-box; padding: 25px; display: flex; flex-direction: column; justify-content: space-between; overflow-y: auto; max-height: 90vh; }
     .modal-info h2 { margin: 0 0 5px; color: #1a73e8; font-size: 20px; }
     .modal-info h4 { margin: 0 0 12px; color: #555; font-weight: normal; font-size: 14px; }
     .modal-info p { line-height: 1.6; color: #333; font-size: 14px; margin-bottom: 15px; }
     
-    .interactive-features { display: flex; flex-direction: column; gap: 10px; margin-top: auto; }
+    .student-view-area { display: flex; flex-direction: column; gap: 10px; margin-top: auto; }
     audio { width: 100%; height: 36px; }
     .external-link-btn {
       display: none; background: #1a73e8; color: white; text-align: center;
-      padding: 10px 15px; border-radius: 6px; text-decoration: none; font-weight: 600;
-      font-size: 14px; transition: background 0.2s;
+      padding: 10px 15px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 14px;
     }
     .external-link-btn:hover { background: #1557b0; }
 
     .close-btn {
-      position: absolute; top: 10px; right: 15px; font-size: 28px;
-      cursor: pointer; color: #888; font-weight: bold; z-index: 10;
+      position: absolute; top: 10px; right: 15px; font-size: 28px; cursor: pointer; color: #888; font-weight: bold; z-index: 10;
     }
 
     @media (max-width: 768px) {
       .modal-content { flex-direction: column; max-height: 90vh; }
-      .modal-img-box { width: 100%; height: 240px; }
+      .modal-img-box { width: 100%; }
+      .modal-img { height: 200px; }
       .modal-info { width: 100%; }
-      #hud { font-size: 11px; padding: 8px 10px; max-width: 200px; }
+      #hud { font-size: 11px; padding: 8px 10px; max-width: 180px; }
     }
   </style>
 </head>
@@ -88,8 +115,12 @@
     <b>PHÒNG TRANH 3D SÁNG TẠO</b><br>
     • Di chuyển: W,A,S,D hoặc phím ảo<br>
     • Xoay góc nhìn: Kéo/Vuốt màn hình<br>
-    • Xem chi tiết: Nhấp vào tranh
+    • Click vào tranh để xem chi tiết
   </div>
+
+  <!-- Nút đăng nhập dành cho Giáo viên -->
+  <button id="teacher-login-btn" onclick="toggleTeacherMode()">🔒 Giáo viên Quản trị</button>
+
   <div id="crosshair"></div>
 
   <div id="mobile-controls">
@@ -101,22 +132,52 @@
 
   <div id="mobile-hint">Vuốt để đổi góc nhìn<br>Bấm phím để đi chuyển</div>
 
+  <!-- Modal Chi Tiết & Bảng Điều Khiển Của Giáo Viên -->
   <div id="modal">
     <div class="modal-content">
       <span class="close-btn" onclick="closeModal()">&times;</span>
+      
+      <!-- Cột trái: Hình ảnh & Công cụ giáo viên -->
       <div class="modal-img-box">
         <img id="m-img" class="modal-img" src="" alt="Tác phẩm">
+        
+        <!-- Khung công cụ chỉ hiện khi Giáo viên đăng nhập -->
+        <div id="teacher-edit-box" class="teacher-tools">
+          <label class="upload-btn-label" for="upload-file-input">🖼️ Thay đổi ảnh bức tranh này</label>
+          <input type="file" id="upload-file-input" accept="image/*" onchange="handleImageUpload(event)">
+        </div>
       </div>
+
+      <!-- Cột phải: Thông tin & Form chỉnh sửa -->
       <div class="modal-info">
-        <div>
+        <!-- Chế độ xem của học sinh -->
+        <div id="student-view-info">
           <h2 id="m-title">Tên tác phẩm</h2>
           <h4 id="m-author">Tác giả</h4>
           <p id="m-desc">Mô tả</p>
         </div>
+
+        <!-- Form chỉnh sửa của Giáo viên -->
+        <div id="teacher-form-info" class="teacher-tools" style="margin-top:0;">
+          <label style="font-size:12px; font-weight:bold; color:#1a73e8;">Chỉnh sửa tiêu đề:</label>
+          <input type="text" id="edit-title">
+          
+          <label style="font-size:12px; font-weight:bold; color:#1a73e8;">Chỉnh sửa tác giả / Lớp:</label>
+          <input type="text" id="edit-author">
+          
+          <label style="font-size:12px; font-weight:bold; color:#1a73e8;">Mô tả chi tiết:</label>
+          <textarea id="edit-desc" rows="3"></textarea>
+
+          <label style="font-size:12px; font-weight:bold; color:#1a73e8;">Link bài tập / Quiz (nếu có):</label>
+          <input type="text" id="edit-link" placeholder="https://...">
+
+          <button class="save-btn" onclick="saveTeacherChanges()">💾 Lưu thay đổi bức tranh này</button>
+        </div>
         
-        <div class="interactive-features">
+        <!-- Giao diện tương tác xem cho học sinh -->
+        <div class="student-view-area">
           <div id="audio-container" style="display:none;">
-            <label style="font-size: 12px; color: #666; font-weight: bold; display: block; margin-bottom: 4px;">🎧 Thuyết minh của tác giả:</label>
+            <label style="font-size: 12px; color: #666; font-weight: bold; display: block; margin-bottom: 4px;">🎧 Thuyết minh:</label>
             <audio id="m-audio" controls></audio>
           </div>
           <a id="m-link" class="external-link-btn" href="#" target="_blank">🔗 Mở liên kết học tập</a>
@@ -137,6 +198,28 @@
 
   <script type="module">
     import * as THREE from 'three';
+
+    let isTeacherLoggedIn = false;
+    window.toggleTeacherMode = () => {
+      if (!isTeacherLoggedIn) {
+        const pass = prompt("Nhập mật khẩu quản trị của giáo viên:");
+        if (pass === "123456") { // Bạn có thể đổi mật khẩu tại đây
+          isTeacherLoggedIn = true;
+          const btn = document.getElementById('teacher-login-btn');
+          btn.innerText = "🔓 Đang ở chế độ Giáo viên";
+          btn.classList.add('logged-in');
+          alert("Đăng nhập quản trị thành công! Bây giờ bạn có thể click vào bất kỳ bức tranh nào để sửa thông tin hoặc thay ảnh.");
+        } else if (pass !== null) {
+          alert("Mật khẩu không đúng!");
+        }
+      } else {
+        isTeacherLoggedIn = false;
+        const btn = document.getElementById('teacher-login-btn');
+        btn.innerText = "🔒 Giáo viên Quản trị";
+        btn.classList.remove('logged-in');
+        alert("Đã thoát chế độ quản trị.");
+      }
+    };
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x1a1a2e);
@@ -174,6 +257,19 @@
 
     const artworkMeshes = [];
     const texLoader = new THREE.TextureLoader();
+    const materialsMap = new Map();
+
+    // Nạp dữ liệu từ localStorage nếu có chỉnh sửa trước đó
+    artworksData.forEach(item => {
+      const savedData = localStorage.getItem(`artwork_data_${item.id}`);
+      if (savedData) {
+        const parsed = JSON.parse(savedData);
+        item.title = parsed.title;
+        item.author = parsed.author;
+        item.description = parsed.description;
+        item.externalLink = parsed.externalLink;
+      }
+    });
 
     function createFallbackTexture(id, title) {
       const canvas = document.createElement('canvas');
@@ -203,7 +299,10 @@
       const fallbackTex = createFallbackTexture(data.id, data.title);
       const artMat = new THREE.MeshBasicMaterial({ map: fallbackTex });
       
-      texLoader.load(data.image, (tex) => {
+      const savedCustomImg = localStorage.getItem(`artwork_img_${data.id}`);
+      const imageSrc = savedCustomImg || data.image;
+
+      texLoader.load(imageSrc, (tex) => {
         artMat.map = tex;
         artMat.needsUpdate = true;
       }, undefined, () => {});
@@ -212,7 +311,9 @@
       painting.position.z = 0.05;
       painting.userData = data;
       frame.add(painting);
+
       artworkMeshes.push(painting);
+      materialsMap.set(data.id, artMat);
     }
 
     let idx = 0;
@@ -258,7 +359,7 @@
     });
 
     window.addEventListener('touchstart', (e) => {
-      if (e.touches.length === 1 && !e.target.closest('#mobile-controls') && !e.target.closest('#modal')) {
+      if (e.touches.length === 1 && !e.target.closest('#mobile-controls') && !e.target.closest('#modal') && !e.target.closest('#teacher-login-btn')) {
         isDragging = true;
         prevX = e.touches[0].clientX;
         prevY = e.touches[0].clientY;
@@ -281,6 +382,7 @@
 
     const raycaster = new THREE.Raycaster();
     const mouse = new THREE.Vector2();
+    let currentSelectedArtwork = null;
 
     function handleSelect(clientX, clientY) {
       mouse.x = (clientX / window.innerWidth) * 2 - 1;
@@ -290,11 +392,33 @@
       const intersects = raycaster.intersectObjects(artworkMeshes);
       if (intersects.length > 0 && intersects[0].distance < 16) {
         const info = intersects[0].object.userData;
+        currentSelectedArtwork = info;
+
+        // Hiển thị thông tin thường
         document.getElementById('m-title').innerText = info.title;
         document.getElementById('m-author').innerText = "Tác giả: " + info.author;
         document.getElementById('m-desc').innerText = info.description;
-        document.getElementById('m-img').src = info.image;
+        document.getElementById('m-img').src = intersects[0].object.material.map.image ? intersects[0].object.material.map.image.src : info.image;
 
+        // Điền sẵn dữ liệu vào form chỉnh sửa của giáo viên
+        document.getElementById('edit-title').value = info.title;
+        document.getElementById('edit-author').value = info.author;
+        document.getElementById('edit-desc').value = info.description;
+        document.getElementById('edit-link').value = info.externalLink || '';
+
+        // Phân quyền hiển thị công cụ giáo viên hay học sinh
+        const teacherBoxes = document.querySelectorAll('.teacher-tools');
+        const studentViewInfo = document.getElementById('student-view-info');
+        
+        if (isTeacherLoggedIn) {
+          teacherBoxes.forEach(box => box.style.display = 'flex');
+          studentViewInfo.style.display = 'none';
+        } else {
+          teacherBoxes.forEach(box => box.style.display = 'none');
+          studentViewInfo.style.display = 'block';
+        }
+
+        // Xử lý Audio & Link
         const audioContainer = document.getElementById('audio-container');
         const audioElement = document.getElementById('m-audio');
         if (info.audio && info.audio.trim() !== "") {
@@ -318,14 +442,60 @@
       }
     }
 
+    // Giáo viên lưu thay đổi thông tin tranh
+    window.saveTeacherChanges = () => {
+      if (!currentSelectedArtwork) return;
+      
+      currentSelectedArtwork.title = document.getElementById('edit-title').value;
+      currentSelectedArtwork.author = document.getElementById('edit-author').value;
+      currentSelectedArtwork.description = document.getElementById('edit-desc').value;
+      currentSelectedArtwork.externalLink = document.getElementById('edit-link').value;
+
+      // Lưu vào localStorage
+      localStorage.setItem(`artwork_data_${currentSelectedArtwork.id}`, JSON.stringify({
+        title: currentSelectedArtwork.title,
+        author: currentSelectedArtwork.author,
+        description: currentSelectedArtwork.description,
+        externalLink: currentSelectedArtwork.externalLink
+      }));
+
+      alert(`Đã lưu thành công thông tin cho Tác phẩm #${currentSelectedArtwork.id}!`);
+      closeModal();
+    };
+
+    // Giáo viên thay đổi ảnh tranh
+    window.handleImageUpload = (event) => {
+      const file = event.target.files[0];
+      if (!file || !currentSelectedArtwork) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const base64Image = e.target.result;
+        document.getElementById('m-img').src = base64Image;
+
+        texLoader.load(base64Image, (newTex) => {
+          const mat = materialsMap.get(currentSelectedArtwork.id);
+          if (mat) {
+            mat.map = newTex;
+            mat.needsUpdate = true;
+          }
+        });
+
+        localStorage.setItem(`artwork_img_${currentSelectedArtwork.id}`, base64Image);
+        alert(`Đã cập nhật ảnh mới cho Tác phẩm #${currentSelectedArtwork.id}!`);
+      };
+      reader.readAsDataURL(file);
+    };
+
     window.addEventListener('click', (e) => {
-      if (e.target.closest('#mobile-controls') || e.target.closest('#modal')) return;
+      if (e.target.closest('#mobile-controls') || e.target.closest('#modal') || e.target.closest('#teacher-login-btn')) return;
       handleSelect(e.clientX, e.clientY);
     });
 
     window.closeModal = () => {
       document.getElementById('modal').style.display = 'none';
       document.getElementById('m-audio').pause();
+      currentSelectedArtwork = null;
     };
 
     function animate() {
@@ -337,7 +507,7 @@
       if (keys['KeyW'] || keys['ArrowUp']) camera.position.addScaledVector(forward, speed);
       if (keys['KeyS'] || keys['ArrowDown']) camera.position.addScaledVector(forward, -speed);
       if (keys['KeyA'] || keys['ArrowLeft']) camera.position.addScaledVector(right, -speed);
-      if (keys['KeyD'] || keys['ArrowRight']) camera.position.addScaledVector(right, speed);
+      if, (keys['KeyD'] || keys['ArrowRight']) camera.position.addScaledVector(right, speed);
 
       camera.position.x = Math.max(-13.8, Math.min(13.8, camera.position.x));
       camera.position.z = Math.max(-21.5, Math.min(21.5, camera.position.z));
