@@ -64,18 +64,17 @@
     import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
     const SUPABASE_URL = 'https://nnamdbcctgakutjuxrmt.supabase.co';
-    // Sử dụng cấu hình không bắt buộc token xác thực khắt khe ở client
     const SUPABASE_ANON_KEY = 'sb_publishable_mvUzfankFVz9zbhGWuPMxw_GZketbmc';
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-      auth: { persistSession: false }
+      auth: { persistSession: false, autoRefreshToken: false }
     });
 
     window.handleSubmit = async function(event) {
       event.preventDefault();
       
       const btn = document.getElementById('btn-submit');
-      btn.innerText = "Đang tải lên hệ thống...";
+      btn.innerText = "Đang xử lý gửi bài...";
       btn.disabled = true;
 
       const name = document.getElementById('student-name').value;
@@ -93,35 +92,48 @@
       }
 
       try {
-        const fileName = `artwork_${slot}_${Date.now()}.${file.name.split('.').pop()}`;
+        // 1. Tải ảnh lên Storage
+        const fileExt = file.name.split('.').pop();
+        const fileName = `artwork_${slot}_${Date.now()}.${fileExt}`;
+        
         const { data: uploadData, error: uploadError } = await supabase.storage
           .from('uploads')
-          .upload(fileName, file, {
-            cacheControl: '3600',
-            upsert: true
-          });
+          .upload(fileName, file, { cacheControl: '3600', upsert: true });
 
-        if (uploadError) throw uploadError;
+        if (uploadError) {
+          throw new Error("Lỗi tải ảnh lên Storage: " + uploadError.message);
+        }
 
+        // 2. Lấy đường dẫn công khai của ảnh
         const { data: publicUrlData } = supabase.storage
           .from('uploads')
           .getPublicUrl(fileName);
 
         const imageUrl = publicUrlData.publicUrl;
 
+        // 3. Lưu thông tin vào bảng artworks
         const { error: dbError } = await supabase
           .from('artworks')
           .upsert([
-            { id: slot, title: title, author: name, description: desc, image_url: imageUrl, status: 'approved' }
-          ]);
+            { 
+              id: slot, 
+              title: title, 
+              author: name, 
+              description: desc, 
+              image_url: imageUrl, 
+              status: 'approved' 
+            }
+          ], { onConflict: ['id'] });
 
-        if (dbError) throw dbError;
+        if (dbError) {
+          throw new Error("Lỗi lưu cơ sở dữ liệu: " + dbError.message);
+        }
 
-        alert(`Thành công! Em ${name} đã nộp bài thành công cho Ô số ${slot}.`);
+        alert(`🎉 Thành công! Em ${name} đã gửi bài thành công cho Ô số ${slot}.`);
         document.getElementById('submit-form').reset();
       } catch (error) {
-        console.error(error);
-        alert("Có lỗi xảy ra khi gửi bài: " + error.message);
+        console.error("Chi tiết lỗi:", error);
+        alert("Có lỗi xảy ra: " + error.message);
       } finally {
         btn.innerText = "🚀 Gửi bài lên hệ thống";
         btn.disabled = false;
