@@ -64,7 +64,8 @@
     import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
     const SUPABASE_URL = 'https://nnamdbcctgakutjuxrmt.supabase.co';
-    const SUPABASE_ANON_KEY = 'sb_publishable_mvUzfankFVz9zbhGWuPMxw_GZketbmc';
+    // Đã thay thế bằng khóa chuẩn JWT eyJ...
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5uYW1kYmNjdGdha3V0anV4cm10Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM3Njk2NzQsImV4cCI6MjEwOTM0NTY3NH0.uKvaum7nu6G_GMr7d10ieSVkEQHS01tWygduJpPZ8VI';
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       auth: { persistSession: false, autoRefreshToken: false }
@@ -92,7 +93,6 @@
       }
 
       try {
-        // 1. Tải ảnh lên Storage
         const fileExt = file.name.split('.').pop();
         const fileName = `artwork_${slot}_${Date.now()}.${fileExt}`;
         
@@ -104,14 +104,12 @@
           throw new Error("Lỗi tải ảnh lên Storage: " + uploadError.message);
         }
 
-        // 2. Lấy đường dẫn công khai của ảnh
         const { data: publicUrlData } = supabase.storage
           .from('uploads')
           .getPublicUrl(fileName);
 
         const imageUrl = publicUrlData.publicUrl;
 
-        // 3. Lưu thông tin vào bảng artworks
         const { error: dbError } = await supabase
           .from('artworks')
           .upsert([
