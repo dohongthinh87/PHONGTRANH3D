@@ -3,7 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Phòng Tranh 3D - Triển Lãm Học Tập</title>
+  <title>Phòng Tranh 3D - Triển Lãm Trực Tuyến</title>
+  <!-- Thư viện Supabase JS Client -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     body { margin: 0; overflow: hidden; font-family: 'Segoe UI', sans-serif; background: #111; user-select: none; -webkit-user-select: none; }
     
@@ -69,11 +71,16 @@
     .teacher-tools input, .teacher-tools textarea {
       width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; font-size: 13px;
     }
+    .upload-btn-label {
+      background: #28a745; color: white; padding: 8px; border-radius: 6px;
+      font-size: 13px; font-weight: 600; cursor: pointer; text-align: center; display: block;
+    }
     .save-btn {
       background: #1a73e8; color: white; border: none; padding: 10px; border-radius: 6px;
       font-weight: bold; cursor: pointer; font-size: 14px; text-align: center;
     }
     .save-btn:hover { background: #1557b0; }
+    #upload-file-input { display: none; }
 
     .modal-info { width: 55%; box-sizing: border-box; padding: 25px; display: flex; flex-direction: column; justify-content: space-between; overflow-y: auto; max-height: 90vh; }
     .modal-info h2 { margin: 0 0 5px; color: #1a73e8; font-size: 20px; }
@@ -129,6 +136,10 @@
       
       <div class="modal-img-box">
         <img id="m-img" class="modal-img" src="" alt="Tác phẩm">
+        <div id="teacher-edit-box" class="teacher-tools">
+          <label class="upload-btn-label" for="upload-file-input">🖼️ Tải ảnh thay thế lên Supabase</label>
+          <input type="file" id="upload-file-input" accept="image/*" onchange="handleImageUpload(event)">
+        </div>
       </div>
 
       <div class="modal-info">
@@ -148,10 +159,7 @@
           <label style="font-size:12px; font-weight:bold; color:#1a73e8;">Mô tả chi tiết:</label>
           <textarea id="edit-desc" rows="3"></textarea>
 
-          <label style="font-size:12px; font-weight:bold; color:#1a73e8;">Link bài tập / Quiz (nếu có):</label>
-          <input type="text" id="edit-link" placeholder="https://...">
-
-          <button class="save-btn" onclick="saveTeacherChanges()">💾 Lưu thay đổi thông tin</button>
+          <button class="save-btn" onclick="saveTeacherChanges()">💾 Lưu thay đổi lên hệ thống</button>
         </div>
         
         <div class="student-view-area">
@@ -177,6 +185,11 @@
 
   <script type="module">
     import * as THREE from 'three';
+    import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+    const SUPABASE_URL = 'https://nnamdbcctgakutjuxrmt.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_mvUzfankFVz9zbhGWuPMxw_GZketbmc';
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     let isTeacherLoggedIn = false;
     window.toggleTeacherMode = () => {
@@ -187,7 +200,7 @@
           const btn = document.getElementById('teacher-login-btn');
           btn.innerText = "🔓 Đang ở chế độ Giáo viên";
           btn.classList.add('logged-in');
-          alert("Đăng nhập thành công! Click vào tranh để sửa tiêu đề, tên tác giả hoặc mô tả.");
+          alert("Đăng nhập thành công! Click vào tranh bất kỳ để sửa thông tin hoặc duyệt bài.");
         } else if (pass !== null) {
           alert("Mật khẩu không đúng!");
         }
@@ -236,18 +249,19 @@
 
     const artworkMeshes = [];
     const texLoader = new THREE.TextureLoader();
+    const materialsMap = new Map();
+    const dynamicArtworksData = {};
 
-    // Đồng bộ dữ liệu chỉnh sửa của giáo viên từ bộ nhớ chung nếu có
-    artworksData.forEach(item => {
-      const savedData = localStorage.getItem(`artwork_data_${item.id}`);
-      if (savedData) {
-        const parsed = JSON.parse(savedData);
-        item.title = parsed.title;
-        item.author = parsed.author;
-        item.description = parsed.description;
-        item.externalLink = parsed.externalLink;
+    // Tải dữ liệu từ Supabase về phòng tranh 3D
+    async function fetchArtworksFromSupabase() {
+      const { data, error } = await supabase.from('artworks').select('*');
+      if (!error && data) {
+        data.forEach(item => {
+          dynamicArtworksData[item.id] = item;
+        });
       }
-    });
+      buildGallery();
+    }
 
     function createFallbackTexture(id, title) {
       const canvas = document.createElement('canvas');
@@ -265,7 +279,7 @@
       return new THREE.CanvasTexture(canvas);
     }
 
-    function hangPainting(data, x, y, z, rotY) {
+    function hangPainting(dataItem, x, y, z, rotY) {
       const frame = new THREE.Mesh(
         new THREE.BoxGeometry(2.3, 1.75, 0.08),
         new THREE.MeshStandardMaterial({ color: 0x222222 })
@@ -274,31 +288,54 @@
       frame.rotation.y = rotY;
       scene.add(frame);
 
-      const fallbackTex = createFallbackTexture(data.id, data.title);
+      // Kiểm tra xem Supabase đã có dữ liệu nộp của học sinh chưa, nếu chưa dùng data.js mặc định
+      const dbItem = dynamicArtworksData[dataItem.id] || {};
+      const currentTitle = dbItem.title || dataItem.title;
+      const currentAuthor = dbItem.author || dataItem.author;
+      const currentDesc = dbItem.description || dataItem.description;
+      const currentImage = dbItem.image_url || dataItem.image;
+
+      const fallbackTex = createFallbackTexture(dataItem.id, currentTitle);
       const artMat = new THREE.MeshBasicMaterial({ map: fallbackTex });
-      
-      // Tải ảnh trực tiếp từ thư mục images/ trên GitHub theo đúng tên file trong data.js
-      texLoader.load(data.image, (tex) => {
+
+      texLoader.load(currentImage, (tex) => {
         artMat.map = tex;
         artMat.needsUpdate = true;
       }, undefined, () => {});
 
       const painting = new THREE.Mesh(new THREE.PlaneGeometry(2.1, 1.55), artMat);
       painting.position.z = 0.05;
-      painting.userData = data;
+      
+      const fullUserData = {
+        id: dataItem.id,
+        title: currentTitle,
+        author: currentAuthor,
+        description: currentDesc,
+        image: currentImage,
+        audio: dataItem.audio || '',
+        externalLink: dataItem.externalLink || ''
+      };
+      
+      painting.userData = fullUserData;
       frame.add(painting);
 
       artworkMeshes.push(painting);
+      materialsMap.set(dataItem.id, artMat);
     }
 
-    let idx = 0;
-    for (let i = 0; i < 12; i++) hangPainting(artworksData[idx++], -14.7, 2.5, 18 - i * 3.3, Math.PI / 2);
-    for (let i = 0; i < 12; i++) hangPainting(artworksData[idx++], 14.7, 2.5, 18 - i * 3.3, -Math.PI / 2);
-    for (let i = 0; i < 5; i++) hangPainting(artworksData[idx++], -10 + i * 5, 2.5, -22.7, 0);
-    for (let i = 0; i < 4; i++) hangPainting(artworksData[idx++], -5.35, 2.4, 3 - i * 3.3, -Math.PI / 2);
-    for (let i = 0; i < 4; i++) hangPainting(artworksData[idx++], -4.65, 2.4, 3 - i * 3.3, Math.PI / 2);
-    for (let i = 0; i < 4; i++) hangPainting(artworksData[idx++], 4.65, 2.4, 3 - i * 3.3, -Math.PI / 2);
-    for (let i = 0; i < 4; i++) hangPainting(artworksData[idx++], 5.35, 2.4, 3 - i * 3.3, Math.PI / 2);
+    function buildGallery() {
+      let idx = 0;
+      for (let i = 0; i < 12; i++) hangPainting(artworksData[idx++], -14.7, 2.5, 18 - i * 3.3, Math.PI / 2);
+      for (let i = 0; i < 12; i++) hangPainting(artworksData[idx++], 14.7, 2.5, 18 - i * 3.3, -Math.PI / 2);
+      for (let i = 0; i < 5; i++) hangPainting(artworksData[idx++], -10 + i * 5, 2.5, -22.7, 0);
+      for (let i = 0; i < 4; i++) hangPainting(artworksData[idx++], -5.35, 2.4, 3 - i * 3.3, -Math.PI / 2);
+      for (let i = 0; i < 4; i++) hangPainting(artworksData[idx++], -4.65, 2.4, 3 - i * 3.3, Math.PI / 2);
+      for (let i = 0; i < 4; i++) hangPainting(artworksData[idx++], 4.65, 2.4, 3 - i * 3.3, -Math.PI / 2);
+      for (let i = 0; i < 4; i++) hangPainting(artworksData[idx++], 5.35, 2.4, 3 - i * 3.3, Math.PI / 2);
+    }
+
+    // Khởi chạy tải dữ liệu Supabase
+    fetchArtworksFromSupabase();
 
     const keys = {};
     window.addEventListener('keydown', (e) => keys[e.code] = true);
@@ -377,7 +414,6 @@
         document.getElementById('edit-title').value = info.title;
         document.getElementById('edit-author').value = info.author;
         document.getElementById('edit-desc').value = info.description;
-        document.getElementById('edit-link').value = info.externalLink || '';
 
         const teacherBoxes = document.querySelectorAll('.teacher-tools');
         const studentViewInfo = document.getElementById('student-view-info');
@@ -390,46 +426,73 @@
           studentViewInfo.style.display = 'block';
         }
 
-        const audioContainer = document.getElementById('audio-container');
-        const audioElement = document.getElementById('m-audio');
-        if (info.audio && info.audio.trim() !== "") {
-          audioElement.src = info.audio;
-          audioContainer.style.display = 'block';
-        } else {
-          audioElement.pause();
-          audioContainer.style.display = 'none';
-        }
-
-        const linkBtn = document.getElementById('m-link');
-        if (info.externalLink && info.externalLink.trim() !== "") {
-          linkBtn.href = info.externalLink;
-          linkBtn.innerText = "🔗 " + (info.linkButtonText || "Mở liên kết học tập");
-          linkBtn.style.display = 'block';
-        } else {
-          linkBtn.style.display = 'none';
-        }
-
         document.getElementById('modal').style.display = 'flex';
       }
     }
 
-    window.saveTeacherChanges = () => {
+    // Giáo viên lưu thay đổi lên Supabase
+    window.saveTeacherChanges = async () => {
       if (!currentSelectedArtwork) return;
       
-      currentSelectedArtwork.title = document.getElementById('edit-title').value;
-      currentSelectedArtwork.author = document.getElementById('edit-author').value;
-      currentSelectedArtwork.description = document.getElementById('edit-desc').value;
-      currentSelectedArtwork.externalLink = document.getElementById('edit-link').value;
+      const newTitle = document.getElementById('edit-title').value;
+      const newAuthor = document.getElementById('edit-author').value;
+      const newDesc = document.getElementById('edit-desc').value;
 
-      localStorage.setItem(`artwork_data_${currentSelectedArtwork.id}`, JSON.stringify({
-        title: currentSelectedArtwork.title,
-        author: currentSelectedArtwork.author,
-        description: currentSelectedArtwork.description,
-        externalLink: currentSelectedArtwork.externalLink
-      }));
+      const { error } = await supabase
+        .from('artworks')
+        .upsert([
+          { 
+            id: currentSelectedArtwork.id, 
+            title: newTitle, 
+            author: newAuthor, 
+            description: newDesc, 
+            image_url: currentSelectedArtwork.image,
+            status: 'approved'
+          }
+        ]);
 
-      alert(`Đã lưu thành công thông tin cho Tác phẩm #${currentSelectedArtwork.id}!`);
-      closeModal();
+      if (error) {
+        alert("Lỗi khi lưu: " + error.message);
+      } else {
+        alert(`Đã cập nhật thành công Tác phẩm #${currentSelectedArtwork.id}!`);
+        location.reload(); // Tải lại trang để cập nhật hình ảnh mới
+      }
+    };
+
+    // Giáo viên thay thế ảnh trực tiếp lên Supabase Storage
+    window.handleImageUpload = async (event) => {
+      const file = event.target.files[0];
+      if (!file || !currentSelectedArtwork) return;
+
+      alert("Đang tải ảnh lên đám mây...");
+      const fileName = `artwork_${currentSelectedArtwork.id}_${Date.now()}.${file.name.split('.').pop()}`;
+      
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('uploads')
+        .upload(fileName, file);
+
+      if (uploadError) {
+        alert("Lỗi tải ảnh: " + uploadError.message);
+        return;
+      }
+
+      const { data: publicUrlData } = supabase.storage
+        .from('uploads')
+        .getPublicUrl(fileName);
+
+      currentSelectedArtwork.image = publicUrlData.publicUrl;
+      document.getElementById('m-img').src = currentSelectedArtwork.image;
+
+      // Cập nhật ngay texture trong không gian 3D
+      texLoader.load(currentSelectedArtwork.image, (newTex) => {
+        const mat = materialsMap.get(currentSelectedArtwork.id);
+        if (mat) {
+          mat.map = newTex;
+          mat.needsUpdate = true;
+        }
+      });
+
+      alert("Tải ảnh lên thành công! Hãy bấm nút 'Lưu thay đổi' bên dưới.");
     };
 
     window.addEventListener('click', (e) => {
@@ -439,7 +502,6 @@
 
     window.closeModal = () => {
       document.getElementById('modal').style.display = 'none';
-      document.getElementById('m-audio').pause();
       currentSelectedArtwork = null;
     };
 
