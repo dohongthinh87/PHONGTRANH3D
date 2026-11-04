@@ -4,18 +4,16 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Phòng Tranh 3D - Triển Lãm Trực Tuyến</title>
-  <!-- Thư viện Supabase JS Client -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     body { margin: 0; overflow: hidden; font-family: 'Segoe UI', sans-serif; background: #111; user-select: none; -webkit-user-select: none; }
-    
+
     #hud {
       position: fixed; top: 15px; left: 15px; color: #fff;
       background: rgba(0, 0, 0, 0.75); padding: 10px 15px;
       border-radius: 8px; pointer-events: none; z-index: 10;
       border-left: 4px solid #00d2ff; font-size: 13px; line-height: 1.5;
     }
-    
+
     #teacher-login-btn {
       position: fixed; top: 15px; right: 15px; z-index: 20;
       background: #ffc107; color: #222; border: none; padding: 8px 14px;
@@ -53,10 +51,24 @@
       font-size: 12px; pointer-events: none; text-align: right; z-index: 10;
     }
 
-    #modal {
+    #modal, #login-modal {
       display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85);
       z-index: 100; justify-content: center; align-items: center; padding: 15px;
     }
+    #login-modal { z-index: 200; }
+    .login-box {
+      background: #fff; color: #222; width: 100%; max-width: 340px; border-radius: 12px;
+      padding: 24px; box-shadow: 0 15px 40px rgba(0,0,0,0.5); display: flex; flex-direction: column; gap: 10px;
+      user-select: text; -webkit-user-select: text;
+    }
+    .login-box h3 { margin: 0 0 4px; color: #1a73e8; text-align: center; }
+    .login-box input { width: 100%; padding: 10px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; }
+    .login-box .row { display: flex; gap: 8px; }
+    .login-box button { flex: 1; padding: 10px; border: 0; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 14px; }
+    #login-submit { background: #1a73e8; color: #fff; }
+    #login-cancel { background: #e3e6ea; color: #333; }
+    #login-error { color: #d93025; font-size: 13px; min-height: 16px; }
+
     .modal-content {
       background: #fff; color: #222; max-width: 850px; width: 100%;
       border-radius: 12px; display: flex; flex-wrap: wrap; overflow: hidden;
@@ -64,12 +76,11 @@
     }
     .modal-img-box { width: 45%; min-width: 280px; background: #000; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 15px; box-sizing: border-box; }
     .modal-img { width: 100%; height: 50vh; object-fit: contain; }
-    
-    .teacher-tools {
-      display: none; width: 100%; margin-top: 15px; flex-direction: column; gap: 8px;
-    }
+
+    .teacher-tools { display: none; width: 100%; margin-top: 15px; flex-direction: column; gap: 8px; }
     .teacher-tools input, .teacher-tools textarea {
       width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; font-size: 13px;
+      user-select: text; -webkit-user-select: text;
     }
     .upload-btn-label {
       background: #28a745; color: white; padding: 8px; border-radius: 6px;
@@ -79,14 +90,18 @@
       background: #1a73e8; color: white; border: none; padding: 10px; border-radius: 6px;
       font-weight: bold; cursor: pointer; font-size: 14px; text-align: center;
     }
-    .save-btn:hover { background: #1557b0; }
+    .save-btn:hover:not(:disabled) { background: #1557b0; }
+    .save-btn:disabled { background: #9aa5a0; cursor: not-allowed; }
     #upload-file-input { display: none; }
+    #teacher-status { font-size: 13px; min-height: 18px; line-height: 1.4; }
+    #teacher-status.ok { color: #137333; }
+    #teacher-status.err { color: #d93025; }
 
     .modal-info { width: 55%; box-sizing: border-box; padding: 25px; display: flex; flex-direction: column; justify-content: space-between; overflow-y: auto; max-height: 90vh; }
     .modal-info h2 { margin: 0 0 5px; color: #1a73e8; font-size: 20px; }
     .modal-info h4 { margin: 0 0 12px; color: #555; font-weight: normal; font-size: 14px; }
     .modal-info p { line-height: 1.6; color: #333; font-size: 14px; margin-bottom: 15px; }
-    
+
     .student-view-area { display: flex; flex-direction: column; gap: 10px; margin-top: auto; }
     audio { width: 100%; height: 36px; }
     .external-link-btn {
@@ -95,15 +110,13 @@
     }
     .external-link-btn:hover { background: #1557b0; }
 
-    .close-btn {
-      position: absolute; top: 10px; right: 15px; font-size: 28px; cursor: pointer; color: #888; font-weight: bold; z-index: 10;
-    }
+    .close-btn { position: absolute; top: 10px; right: 15px; font-size: 28px; cursor: pointer; color: #888; font-weight: bold; z-index: 10; }
 
     @media (max-width: 768px) {
-      .modal-content { flex-direction: column; max-height: 90vh; }
+      .modal-content { flex-direction: column; max-height: 90vh; overflow-y: auto; }
       .modal-img-box { width: 100%; }
       .modal-img { height: 200px; }
-      .modal-info { width: 100%; }
+      .modal-info { width: 100%; max-height: none; }
       #hud { font-size: 11px; padding: 8px 10px; max-width: 180px; }
     }
   </style>
@@ -130,15 +143,29 @@
 
   <div id="mobile-hint">Vuốt để đổi góc nhìn<br>Bấm phím để đi chuyển</div>
 
+  <!-- Hộp đăng nhập giáo viên (đăng nhập thật bằng Supabase Auth) -->
+  <div id="login-modal">
+    <div class="login-box">
+      <h3>🔐 Đăng nhập giáo viên</h3>
+      <input type="email" id="login-email" placeholder="Email giáo viên" autocomplete="username">
+      <input type="password" id="login-pass" placeholder="Mật khẩu" autocomplete="current-password">
+      <div id="login-error" role="alert"></div>
+      <div class="row">
+        <button id="login-submit">Đăng nhập</button>
+        <button id="login-cancel">Hủy</button>
+      </div>
+    </div>
+  </div>
+
   <div id="modal">
     <div class="modal-content">
       <span class="close-btn" onclick="closeModal()">&times;</span>
-      
+
       <div class="modal-img-box">
         <img id="m-img" class="modal-img" src="" alt="Tác phẩm">
         <div id="teacher-edit-box" class="teacher-tools">
           <label class="upload-btn-label" for="upload-file-input">🖼️ Tải ảnh thay thế lên Supabase</label>
-          <input type="file" id="upload-file-input" accept="image/*" onchange="handleImageUpload(event)">
+          <input type="file" id="upload-file-input" accept="image/jpeg,image/png,image/webp" onchange="handleImageUpload(event)">
         </div>
       </div>
 
@@ -150,18 +177,19 @@
         </div>
 
         <div id="teacher-form-info" class="teacher-tools" style="margin-top:0;">
-          <label style="font-size:12px; font-weight:bold; color:#1a73e8;">Chỉnh sửa tiêu đề:</label>
-          <input type="text" id="edit-title">
-          
-          <label style="font-size:12px; font-weight:bold; color:#1a73e8;">Chỉnh sửa tác giả / Lớp:</label>
-          <input type="text" id="edit-author">
-          
-          <label style="font-size:12px; font-weight:bold; color:#1a73e8;">Mô tả chi tiết:</label>
-          <textarea id="edit-desc" rows="3"></textarea>
+          <label for="edit-title" style="font-size:12px; font-weight:bold; color:#1a73e8;">Chỉnh sửa tiêu đề:</label>
+          <input type="text" id="edit-title" maxlength="100">
 
-          <button class="save-btn" onclick="saveTeacherChanges()">💾 Lưu thay đổi lên hệ thống</button>
+          <label for="edit-author" style="font-size:12px; font-weight:bold; color:#1a73e8;">Chỉnh sửa tác giả / Lớp:</label>
+          <input type="text" id="edit-author" maxlength="80">
+
+          <label for="edit-desc" style="font-size:12px; font-weight:bold; color:#1a73e8;">Mô tả chi tiết:</label>
+          <textarea id="edit-desc" rows="3" maxlength="500"></textarea>
+
+          <button class="save-btn" id="save-btn" onclick="saveTeacherChanges()">💾 Lưu thay đổi lên hệ thống</button>
+          <div id="teacher-status" role="status" aria-live="polite"></div>
         </div>
-        
+
         <div class="student-view-area">
           <div id="audio-container" style="display:none;">
             <label style="font-size: 12px; color: #666; font-weight: bold; display: block; margin-bottom: 4px;">🎧 Thuyết minh:</label>
@@ -187,32 +215,66 @@
     import * as THREE from 'three';
     import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
+    // ---------- Kết nối Supabase ----------
+    // Khóa anon (JWT) giống trang nộp bài. Đây là khóa công khai, KHÔNG dùng khóa service_role.
     const SUPABASE_URL = 'https://nnamdbcctgakutjuxrmt.supabase.co';
-    const SUPABASE_ANON_KEY = 'sb_publishable_mvUzfankFVz9zbhGWuPMxw_GZketbmc';
-    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5uYW1kYmNjdGdha3V0anV4cm10Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM3Njk2NzQsImV4cCI6MjEwOTM0NTY3NH0.uKvaum7nu6G_GMr7d10ieSVkEQHS01tWygduJpPZ8VI';
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      auth: { persistSession: false, autoRefreshToken: true }
+    });
 
+    const $ = (id) => document.getElementById(id);
+    const inUI = (t) => !!(t && t.closest && t.closest('#mobile-controls, #modal, #teacher-login-btn, #login-modal'));
+    const isTyping = (e) => ['INPUT', 'TEXTAREA'].includes(e.target.tagName);
+
+    // ---------- Đăng nhập giáo viên (Supabase Auth) ----------
     let isTeacherLoggedIn = false;
-    window.toggleTeacherMode = () => {
-      if (!isTeacherLoggedIn) {
-        const pass = prompt("Nhập mật khẩu quản trị của giáo viên:");
-        if (pass === "123456") {
-          isTeacherLoggedIn = true;
-          const btn = document.getElementById('teacher-login-btn');
-          btn.innerText = "🔓 Đang ở chế độ Giáo viên";
-          btn.classList.add('logged-in');
-          alert("Đăng nhập thành công! Click vào tranh bất kỳ để sửa thông tin hoặc duyệt bài.");
-        } else if (pass !== null) {
-          alert("Mật khẩu không đúng!");
-        }
-      } else {
-        isTeacherLoggedIn = false;
-        const btn = document.getElementById('teacher-login-btn');
-        btn.innerText = "🔒 Giáo viên Quản trị";
-        btn.classList.remove('logged-in');
-        alert("Đã thoát chế độ quản trị.");
+
+    function setTeacherUI(on) {
+      isTeacherLoggedIn = on;
+      const btn = $('teacher-login-btn');
+      btn.innerText = on ? '🔓 Đang ở chế độ Giáo viên' : '🔒 Giáo viên Quản trị';
+      btn.classList.toggle('logged-in', on);
+    }
+
+    function openLogin() {
+      $('login-error').textContent = '';
+      $('login-pass').value = '';
+      $('login-modal').style.display = 'flex';
+      $('login-email').focus();
+    }
+    function closeLogin() { $('login-modal').style.display = 'none'; }
+
+    async function doLogin() {
+      const email = $('login-email').value.trim();
+      const password = $('login-pass').value;
+      if (!email || !password) { $('login-error').textContent = 'Vui lòng nhập email và mật khẩu.'; return; }
+      $('login-submit').disabled = true;
+      $('login-error').textContent = 'Đang đăng nhập...';
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      $('login-submit').disabled = false;
+      if (error) {
+        $('login-error').textContent = /invalid login/i.test(error.message)
+          ? 'Sai email hoặc mật khẩu.' : 'Không đăng nhập được: ' + error.message;
+        return;
       }
+      closeLogin();
+      setTeacherUI(true);
+    }
+
+    window.toggleTeacherMode = async () => {
+      if (!isTeacherLoggedIn) { openLogin(); return; }
+      await supabase.auth.signOut();
+      setTeacherUI(false);
+      closeModal();
     };
 
+    $('login-submit').addEventListener('click', doLogin);
+    $('login-cancel').addEventListener('click', closeLogin);
+    $('login-pass').addEventListener('keydown', (e) => { if (e.key === 'Enter') doLogin(); });
+    $('login-email').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('login-pass').focus(); });
+
+    // ---------- Cảnh 3D ----------
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x1a1a2e);
 
@@ -240,25 +302,34 @@
       wall.position.set(x, y, z);
       scene.add(wall);
     }
-    createWall(0.5, 6, 46, -15, 3, 0);  
-    createWall(0.5, 6, 46, 15, 3, 0);   
-    createWall(30, 6, 0.5, 0, 3, -23);  
-    createWall(30, 6, 0.5, 0, 3, 23);   
-    createWall(0.6, 5, 14, -5, 2.5, -2); 
-    createWall(0.6, 5, 14, 5, 2.5, -2);  
+    createWall(0.5, 6, 46, -15, 3, 0);
+    createWall(0.5, 6, 46, 15, 3, 0);
+    createWall(30, 6, 0.5, 0, 3, -23);
+    createWall(30, 6, 0.5, 0, 3, 23);
+    createWall(0.6, 5, 14, -5, 2.5, -2);
+    createWall(0.6, 5, 14, 5, 2.5, -2);
 
     const artworkMeshes = [];
     const texLoader = new THREE.TextureLoader();
+    // Bắt buộc để WebGL được phép dùng ảnh từ Supabase (khác tên miền)
+    texLoader.setCrossOrigin('anonymous');
     const materialsMap = new Map();
     const dynamicArtworksData = {};
 
-    // Tải dữ liệu từ Supabase về phòng tranh 3D
+    // Tải dữ liệu bài nộp từ Supabase
     async function fetchArtworksFromSupabase() {
-      const { data, error } = await supabase.from('artworks').select('*');
-      if (!error && data) {
-        data.forEach(item => {
-          dynamicArtworksData[item.id] = item;
-        });
+      try {
+        const { data, error } = await supabase.from('artworks').select('*');
+        if (error) {
+          console.warn('Không tải được dữ liệu từ Supabase:', error.message);
+        } else if (data) {
+          data.forEach((item) => {
+            if (item.status === 'pending' || item.status === 'rejected') return; // chưa duyệt thì ẩn
+            dynamicArtworksData[item.id] = item;
+          });
+        }
+      } catch (e) {
+        console.warn('Lỗi kết nối Supabase:', e);
       }
       buildGallery();
     }
@@ -275,8 +346,19 @@
       ctx.textAlign = 'center';
       ctx.fillText(`TÁC PHẨM #${id}`, 256, 180);
       ctx.font = '24px sans-serif';
-      ctx.fillText(title, 256, 235);
-      return new THREE.CanvasTexture(canvas);
+      ctx.fillText(title || '', 256, 235);
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      return { tex, dataUrl: canvas.toDataURL('image/png') };
+    }
+
+    function loadIntoMaterial(mat, url) {
+      if (!url) return;
+      texLoader.load(url, (tex) => {
+        tex.colorSpace = THREE.SRGBColorSpace;
+        mat.map = tex;
+        mat.needsUpdate = true;
+      }, undefined, () => { console.warn('Không tải được ảnh:', url); });
     }
 
     function hangPainting(dataItem, x, y, z, rotY) {
@@ -288,35 +370,30 @@
       frame.rotation.y = rotY;
       scene.add(frame);
 
-      // Kiểm tra xem Supabase đã có dữ liệu nộp của học sinh chưa, nếu chưa dùng data.js mặc định
+      // Ưu tiên dữ liệu trên Supabase, nếu chưa có thì dùng data.js
       const dbItem = dynamicArtworksData[dataItem.id] || {};
       const currentTitle = dbItem.title || dataItem.title;
       const currentAuthor = dbItem.author || dataItem.author;
       const currentDesc = dbItem.description || dataItem.description;
       const currentImage = dbItem.image_url || dataItem.image;
 
-      const fallbackTex = createFallbackTexture(dataItem.id, currentTitle);
-      const artMat = new THREE.MeshBasicMaterial({ map: fallbackTex });
-
-      texLoader.load(currentImage, (tex) => {
-        artMat.map = tex;
-        artMat.needsUpdate = true;
-      }, undefined, () => {});
+      const fallback = createFallbackTexture(dataItem.id, currentTitle);
+      const artMat = new THREE.MeshBasicMaterial({ map: fallback.tex });
+      loadIntoMaterial(artMat, currentImage);
 
       const painting = new THREE.Mesh(new THREE.PlaneGeometry(2.1, 1.55), artMat);
       painting.position.z = 0.05;
-      
-      const fullUserData = {
+
+      painting.userData = {
         id: dataItem.id,
         title: currentTitle,
         author: currentAuthor,
         description: currentDesc,
         image: currentImage,
+        fallbackUrl: fallback.dataUrl,
         audio: dataItem.audio || '',
         externalLink: dataItem.externalLink || ''
       };
-      
-      painting.userData = fullUserData;
       frame.add(painting);
 
       artworkMeshes.push(painting);
@@ -334,67 +411,78 @@
       for (let i = 0; i < 4; i++) hangPainting(artworksData[idx++], 5.35, 2.4, 3 - i * 3.3, Math.PI / 2);
     }
 
-    // Khởi chạy tải dữ liệu Supabase
     fetchArtworksFromSupabase();
 
+    // ---------- Điều khiển ----------
     const keys = {};
-    window.addEventListener('keydown', (e) => keys[e.code] = true);
-    window.addEventListener('keyup', (e) => keys[e.code] = false);
+    window.addEventListener('keydown', (e) => { if (isTyping(e)) return; keys[e.code] = true; });
+    window.addEventListener('keyup', (e) => { keys[e.code] = false; });
 
     const setupVirtualBtn = (id, code) => {
-      const btn = document.getElementById(id);
+      const btn = $(id);
       const pressOn = (e) => { e.preventDefault(); keys[code] = true; btn.classList.add('active'); };
       const pressOff = (e) => { e.preventDefault(); keys[code] = false; btn.classList.remove('active'); };
       btn.addEventListener('mousedown', pressOn);
       btn.addEventListener('mouseup', pressOff);
       btn.addEventListener('mouseleave', pressOff);
-      btn.addEventListener('touchstart', pressOn, {passive: false});
-      btn.addEventListener('touchend', pressOff, {passive: false});
+      btn.addEventListener('touchstart', pressOn, { passive: false });
+      btn.addEventListener('touchend', pressOff, { passive: false });
     };
     setupVirtualBtn('btn-up', 'KeyW');
     setupVirtualBtn('btn-down', 'KeyS');
     setupVirtualBtn('btn-left', 'KeyA');
     setupVirtualBtn('btn-right', 'KeyD');
 
-    let isDragging = false, prevX = 0, prevY = 0, yaw = 0, pitch = 0;
+    let isDragging = false, dragMoved = false, startX = 0, startY = 0;
+    let prevX = 0, prevY = 0, yaw = 0, pitch = 0;
 
-    window.addEventListener('mousedown', (e) => { isDragging = true; prevX = e.clientX; prevY = e.clientY; });
-    window.addEventListener('mouseup', () => isDragging = false);
-    window.addEventListener('mousemove', (e) => {
-      if (!isDragging) return;
-      yaw -= (e.clientX - prevX) * 0.004;
-      pitch = Math.max(-0.5, Math.min(0.5, pitch - (e.clientY - prevY) * 0.003));
-      prevX = e.clientX; prevY = e.clientY;
-      camera.rotation.order = 'YXZ';
-      camera.rotation.y = yaw;
-      camera.rotation.x = pitch;
-    });
-
-    window.addEventListener('touchstart', (e) => {
-      if (e.touches.length === 1 && !e.target.closest('#mobile-controls') && !e.target.closest('#modal') && !e.target.closest('#teacher-login-btn')) {
-        isDragging = true;
-        prevX = e.touches[0].clientX;
-        prevY = e.touches[0].clientY;
-      }
-    }, {passive: true});
-
-    window.addEventListener('touchend', () => isDragging = false, {passive: true});
-
-    window.addEventListener('touchmove', (e) => {
-      if (!isDragging || e.touches.length !== 1) return;
-      const clientX = e.touches[0].clientX;
-      const clientY = e.touches[0].clientY;
-      yaw -= (clientX - prevX) * 0.005;
-      pitch = Math.max(-0.5, Math.min(0.5, pitch - (clientY - prevY) * 0.004));
+    function rotateBy(clientX, clientY, kx, ky) {
+      if (Math.abs(clientX - startX) + Math.abs(clientY - startY) > 6) dragMoved = true;
+      yaw -= (clientX - prevX) * kx;
+      pitch = Math.max(-0.5, Math.min(0.5, pitch - (clientY - prevY) * ky));
       prevX = clientX; prevY = clientY;
       camera.rotation.order = 'YXZ';
       camera.rotation.y = yaw;
       camera.rotation.x = pitch;
-    }, {passive: true});
+    }
 
+    window.addEventListener('mousedown', (e) => {
+      if (inUI(e.target)) return;
+      isDragging = true; dragMoved = false;
+      startX = prevX = e.clientX; startY = prevY = e.clientY;
+    });
+    window.addEventListener('mouseup', () => { isDragging = false; });
+    window.addEventListener('mousemove', (e) => { if (isDragging) rotateBy(e.clientX, e.clientY, 0.004, 0.003); });
+
+    window.addEventListener('touchstart', (e) => {
+      if (e.touches.length === 1 && !inUI(e.target)) {
+        isDragging = true; dragMoved = false;
+        startX = prevX = e.touches[0].clientX;
+        startY = prevY = e.touches[0].clientY;
+      }
+    }, { passive: true });
+    window.addEventListener('touchend', () => { isDragging = false; }, { passive: true });
+    window.addEventListener('touchmove', (e) => {
+      if (!isDragging || e.touches.length !== 1) return;
+      rotateBy(e.touches[0].clientX, e.touches[0].clientY, 0.005, 0.004);
+    }, { passive: true });
+
+    // ---------- Chọn tranh ----------
     const raycaster = new THREE.Raycaster();
     const mouse = new THREE.Vector2();
     let currentSelectedArtwork = null;
+
+    function setModalImage(info) {
+      const img = $('m-img');
+      img.onerror = () => { img.onerror = null; img.src = info.fallbackUrl; };
+      img.src = info.image || info.fallbackUrl;
+    }
+
+    function setStatus(msg, kind) {
+      const el = $('teacher-status');
+      el.textContent = msg || '';
+      el.className = kind || '';
+    }
 
     function handleSelect(clientX, clientY) {
       mouse.x = (clientX / window.innerWidth) * 2 - 1;
@@ -406,105 +494,105 @@
         const info = intersects[0].object.userData;
         currentSelectedArtwork = info;
 
-        document.getElementById('m-title').innerText = info.title;
-        document.getElementById('m-author').innerText = "Tác giả: " + info.author;
-        document.getElementById('m-desc').innerText = info.description;
-        document.getElementById('m-img').src = intersects[0].object.material.map.image ? intersects[0].object.material.map.image.src : info.image;
+        $('m-title').innerText = info.title;
+        $('m-author').innerText = 'Tác giả: ' + info.author;
+        $('m-desc').innerText = info.description;
+        setModalImage(info);
 
-        document.getElementById('edit-title').value = info.title;
-        document.getElementById('edit-author').value = info.author;
-        document.getElementById('edit-desc').value = info.description;
+        $('edit-title').value = info.title || '';
+        $('edit-author').value = info.author || '';
+        $('edit-desc').value = info.description || '';
+        setStatus('');
 
-        const teacherBoxes = document.querySelectorAll('.teacher-tools');
-        const studentViewInfo = document.getElementById('student-view-info');
-        
-        if (isTeacherLoggedIn) {
-          teacherBoxes.forEach(box => box.style.display = 'flex');
-          studentViewInfo.style.display = 'none';
-        } else {
-          teacherBoxes.forEach(box => box.style.display = 'none');
-          studentViewInfo.style.display = 'block';
-        }
+        document.querySelectorAll('.teacher-tools').forEach((box) => {
+          box.style.display = isTeacherLoggedIn ? 'flex' : 'none';
+        });
+        $('student-view-info').style.display = isTeacherLoggedIn ? 'none' : 'block';
 
-        document.getElementById('modal').style.display = 'flex';
+        $('modal').style.display = 'flex';
       }
     }
 
-    // Giáo viên lưu thay đổi lên Supabase
+    // ---------- Giáo viên lưu thay đổi ----------
     window.saveTeacherChanges = async () => {
       if (!currentSelectedArtwork) return;
-      
-      const newTitle = document.getElementById('edit-title').value;
-      const newAuthor = document.getElementById('edit-author').value;
-      const newDesc = document.getElementById('edit-desc').value;
+      if (!isTeacherLoggedIn) { setStatus('Bạn cần đăng nhập giáo viên để lưu.', 'err'); return; }
 
-      const { error } = await supabase
-        .from('artworks')
-        .upsert([
-          { 
-            id: currentSelectedArtwork.id, 
-            title: newTitle, 
-            author: newAuthor, 
-            description: newDesc, 
-            image_url: currentSelectedArtwork.image,
-            status: 'approved'
-          }
-        ]);
+      const newTitle = $('edit-title').value.trim();
+      const newAuthor = $('edit-author').value.trim();
+      const newDesc = $('edit-desc').value.trim();
+      if (!newTitle) { setStatus('Tiêu đề không được để trống.', 'err'); return; }
 
+      $('save-btn').disabled = true;
+      setStatus('Đang lưu...', '');
+
+      const { error } = await supabase.from('artworks').upsert([{
+        id: currentSelectedArtwork.id,
+        title: newTitle,
+        author: newAuthor,
+        description: newDesc,
+        image_url: currentSelectedArtwork.image || null,
+        status: 'approved'
+      }]);
+
+      $('save-btn').disabled = false;
       if (error) {
-        alert("Lỗi khi lưu: " + error.message);
-      } else {
-        alert(`Đã cập nhật thành công Tác phẩm #${currentSelectedArtwork.id}!`);
-        location.reload(); // Tải lại trang để cập nhật hình ảnh mới
-      }
-    };
-
-    // Giáo viên thay thế ảnh trực tiếp lên Supabase Storage
-    window.handleImageUpload = async (event) => {
-      const file = event.target.files[0];
-      if (!file || !currentSelectedArtwork) return;
-
-      alert("Đang tải ảnh lên đám mây...");
-      const fileName = `artwork_${currentSelectedArtwork.id}_${Date.now()}.${file.name.split('.').pop()}`;
-      
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('uploads')
-        .upload(fileName, file);
-
-      if (uploadError) {
-        alert("Lỗi tải ảnh: " + uploadError.message);
+        setStatus('Lỗi khi lưu: ' + error.message, 'err');
         return;
       }
+      // Cập nhật ngay trong phòng tranh, không cần tải lại trang
+      currentSelectedArtwork.title = newTitle;
+      currentSelectedArtwork.author = newAuthor;
+      currentSelectedArtwork.description = newDesc;
+      $('m-title').innerText = newTitle;
+      $('m-author').innerText = 'Tác giả: ' + newAuthor;
+      $('m-desc').innerText = newDesc;
+      setStatus(`✅ Đã lưu Tác phẩm #${currentSelectedArtwork.id}.`, 'ok');
+    };
 
-      const { data: publicUrlData } = supabase.storage
+    // ---------- Giáo viên thay ảnh ----------
+    window.handleImageUpload = async (event) => {
+      const file = event.target.files[0];
+      event.target.value = '';
+      if (!file || !currentSelectedArtwork) return;
+      if (!isTeacherLoggedIn) { setStatus('Bạn cần đăng nhập giáo viên để tải ảnh.', 'err'); return; }
+
+      const extMap = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
+      const ext = extMap[file.type];
+      if (!ext) { setStatus('Chỉ nhận ảnh JPG, PNG hoặc WEBP.', 'err'); return; }
+      if (file.size > 5 * 1024 * 1024) { setStatus('Ảnh quá lớn (trên 5MB).', 'err'); return; }
+
+      setStatus('Đang tải ảnh lên...', '');
+      const rand = Math.random().toString(36).slice(2, 8);
+      const fileName = `artwork_${currentSelectedArtwork.id}_${Date.now()}_${rand}.${ext}`;
+
+      const { error: uploadError } = await supabase.storage
         .from('uploads')
-        .getPublicUrl(fileName);
+        .upload(fileName, file, { cacheControl: '3600', upsert: false, contentType: file.type });
+      if (uploadError) { setStatus('Lỗi tải ảnh: ' + uploadError.message, 'err'); return; }
 
-      currentSelectedArtwork.image = publicUrlData.publicUrl;
-      document.getElementById('m-img').src = currentSelectedArtwork.image;
+      const { data: urlData } = supabase.storage.from('uploads').getPublicUrl(fileName);
+      currentSelectedArtwork.image = urlData.publicUrl;
+      setModalImage(currentSelectedArtwork);
 
-      // Cập nhật ngay texture trong không gian 3D
-      texLoader.load(currentSelectedArtwork.image, (newTex) => {
-        const mat = materialsMap.get(currentSelectedArtwork.id);
-        if (mat) {
-          mat.map = newTex;
-          mat.needsUpdate = true;
-        }
-      });
+      const mat = materialsMap.get(currentSelectedArtwork.id);
+      if (mat) loadIntoMaterial(mat, currentSelectedArtwork.image);
 
-      alert("Tải ảnh lên thành công! Hãy bấm nút 'Lưu thay đổi' bên dưới.");
+      setStatus('Đã tải ảnh lên. Hãy bấm "Lưu thay đổi" để lưu vào hệ thống.', 'ok');
     };
 
     window.addEventListener('click', (e) => {
-      if (e.target.closest('#mobile-controls') || e.target.closest('#modal') || e.target.closest('#teacher-login-btn')) return;
+      if (inUI(e.target)) return;
+      if (dragMoved) { dragMoved = false; return; } // vừa kéo xoay, không tính là click
       handleSelect(e.clientX, e.clientY);
     });
 
     window.closeModal = () => {
-      document.getElementById('modal').style.display = 'none';
+      $('modal').style.display = 'none';
       currentSelectedArtwork = null;
     };
 
+    // ---------- Vòng lặp ----------
     function animate() {
       requestAnimationFrame(animate);
       const speed = 0.14;
