@@ -59,9 +59,9 @@
         <input type="file" id="artwork-file" accept="image/*" required>
       </div>
 
-      <button type="submit" class="submit-btn" id="btn-submit">🚀 Gửi bài cho Giáo viên</button>
+      <button type="submit" class="submit-btn" id="btn-submit">🚀 Gửi bài & Tải về máy giáo viên</button>
     </form>
-    <div class="note">Sau khi gửi thành công, giáo viên sẽ kiểm duyệt và treo vào phòng tranh 3D chính thức.</div>
+    <div class="note">Khi học sinh bấm gửi, hệ thống sẽ đồng thời tải file ảnh bài làm về máy để giáo viên đưa vào phòng tranh 3D.</div>
   </div>
 
   <script>
@@ -75,28 +75,20 @@
       
       if(fileInput.files.length > 0) {
         const file = fileInput.files[0];
-        const reader = new FileReader();
         
-        reader.onload = function(e) {
-          const base64Image = e.target.result;
-          
-          const submissionKey = `pending_submission_${slot}`;
-          const subData = {
-            name: name,
-            slot: slot,
-            title: title,
-            desc: document.getElementById('artwork-desc').value,
-            image: base64Image,
-            time: new Date().toLocaleString()
-          };
-          
-          localStorage.setItem(submissionKey, JSON.stringify(subData));
-          
-          alert(`Cảm ơn em ${name}! Bài nộp cho Tác phẩm số ${slot} đã được lưu thành công.`);
-          document.getElementById('submit-form').reset();
-        };
-        
-        reader.readAsDataURL(file);
+        // Tạo đường link tải file tự động về máy khi học sinh nộp
+        const url = URL.createObjectURL(file);
+        const a = document.createElement('a');
+        a.href = url;
+        // Đặt tên file tải về theo đúng số ô tranh và tên học sinh (Ví dụ: O_45_NguyenVanA.jpg)
+        a.download = `O_So_${slot}_${name.replace(/\s+/g, '_')}.${file.name.split('.').pop()}`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+
+        alert(`Thành công! Em ${name} đã gửi bài cho Ô số ${slot}. File ảnh bài làm đã được tải về máy của giáo viên/thiết bị nộp.`);
+        document.getElementById('submit-form-reset').click();
+        document.getElementById('submit-form').reset();
       }
     }
   </script>
