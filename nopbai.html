@@ -5,60 +5,124 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Cổng Nộp Bài Triển Lãm 3D</title>
 <style>
-body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; margin: 0; padding: 20px; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
-.container { background: #fff; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 500px; box-sizing: border-box; }
-h2 { color: #1a73e8; text-align: center; margin-bottom: 20px; }
-.form-group { margin-bottom: 15px; }
-label { display: block; font-weight: bold; margin-bottom: 5px; color: #333; font-size: 14px; }
-input[type="text"], select, input[type="file"], textarea { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 14px; }
-textarea { resize: vertical; height: 80px; }
-.submit-btn { background: #28a745; color: white; border: none; padding: 12px; width: 100%; border-radius: 6px; font-weight: bold; font-size: 16px; cursor: pointer; transition: background 0.2s; }
-.submit-btn:hover { background: #218838; }
-.submit-btn:disabled { background: #9aa5a0; cursor: not-allowed; }
-.note { font-size: 12px; color: #666; text-align: center; margin-top: 15px; line-height: 1.5; }
-.hint { font-size: 12px; color: #666; margin-top: 4px; }
+  :root {
+    --blue: #1a73e8; --green: #28a745; --green-dark: #218838;
+    --red: #d93025; --bg: #f0f2f5; --text: #222; --muted: #666; --line: #d5d9de;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text);
+    margin: 0; padding: 20px; display: flex; justify-content: center; min-height: 100vh;
+  }
+  .container {
+    background: #fff; padding: 28px; border-radius: 14px; width: 100%; max-width: 560px;
+    box-shadow: 0 4px 18px rgba(0,0,0,.1); align-self: flex-start;
+  }
+  h1 { color: var(--blue); text-align: center; font-size: 24px; margin: 0 0 4px; }
+  .sub { text-align: center; color: var(--muted); font-size: 13px; margin: 0 0 22px; }
+  .field { margin-bottom: 18px; }
+  label, .label { display: block; font-weight: 600; font-size: 14px; margin-bottom: 6px; }
+  input[type="text"], textarea {
+    width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; font: inherit; font-size: 14px;
+  }
+  input[type="text"]:focus, textarea:focus { outline: 2px solid var(--blue); border-color: transparent; }
+  textarea { resize: vertical; height: 90px; }
+  .count { text-align: right; font-size: 12px; color: var(--muted); margin-top: 3px; }
+  .hint { font-size: 12px; color: var(--muted); margin-top: 6px; }
+
+  .slots { display: grid; grid-template-columns: repeat(9, 1fr); gap: 6px; }
+  .slot {
+    padding: 9px 0; border: 1px solid var(--line); background: #fff; border-radius: 8px;
+    font: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
+  }
+  .slot:hover:not(:disabled) { border-color: var(--blue); }
+  .slot[aria-pressed="true"] { background: var(--blue); border-color: var(--blue); color: #fff; }
+  .slot:disabled { background: #eceff1; color: #aab0b6; cursor: not-allowed; text-decoration: line-through; }
+  .slot:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+  .chosen { font-size: 13px; margin-top: 8px; color: var(--blue); font-weight: 600; min-height: 18px; }
+
+  input[type="file"] { width: 100%; font-size: 14px; }
+  .preview { margin-top: 10px; display: none; }
+  .preview img { max-width: 100%; max-height: 260px; border-radius: 8px; border: 1px solid var(--line); display: block; margin: 0 auto; }
+  .preview .info { text-align: center; font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+  .submit-btn {
+    background: var(--green); color: #fff; border: 0; padding: 13px; width: 100%; border-radius: 8px;
+    font: inherit; font-size: 16px; font-weight: 700; cursor: pointer; transition: background .2s;
+  }
+  .submit-btn:hover:not(:disabled) { background: var(--green-dark); }
+  .submit-btn:disabled { background: #9aa5a0; cursor: not-allowed; }
+
+  .status { display: none; margin-top: 14px; padding: 12px 14px; border-radius: 8px; font-size: 14px; line-height: 1.5; }
+  .status.ok { display: block; background: #e6f4ea; color: #137333; }
+  .status.err { display: block; background: #fce8e6; color: var(--red); }
+  .status.info { display: block; background: #e8f0fe; color: #174ea6; }
+  .note { font-size: 12px; color: var(--muted); text-align: center; margin-top: 16px; line-height: 1.5; }
+
+  @media (max-width: 480px) {
+    .slots { grid-template-columns: repeat(5, 1fr); }
+    .container { padding: 20px; }
+  }
 </style>
 </head>
 <body>
-<div class="container">
-  <h2>🎨 Cổng Nộp Bài Học Sinh</h2>
-  <form id="submit-form">
-    <div class="form-group">
-      <label for="student-name">Họ và tên học sinh:</label>
-      <input type="text" id="student-name" required maxlength="80" placeholder="Ví dụ: Nguyễn Văn A">
+<main class="container">
+  <h1>🎨 Cổng Nộp Bài Học Sinh</h1>
+  <p class="sub">Triển lãm tranh 3D</p>
+
+  <form id="submit-form" novalidate>
+    <div class="field">
+      <label for="student-name">Họ và tên học sinh</label>
+      <input type="text" id="student-name" maxlength="80" autocomplete="name" placeholder="Ví dụ: Nguyễn Văn A">
     </div>
-    <div class="form-group">
-      <label for="artwork-slot">Chọn số thứ tự tranh muốn treo (Từ 1 đến 45):</label>
-      <select id="artwork-slot" required>
-        <option value="">Đang tải danh sách ô...</option>
-      </select>
-      <div class="hint">Ô ghi "đã có tranh" đã được chọn và không thể chọn lại.</div>
+
+    <div class="field">
+      <span class="label" id="slot-label">Chọn vị trí treo tranh (1 – 45)</span>
+      <div class="slots" id="slots" role="group" aria-labelledby="slot-label"></div>
+      <div class="chosen" id="chosen"></div>
+      <div class="hint">Ô bị gạch mờ đã có tranh nên không chọn được.</div>
     </div>
-    <div class="form-group">
-      <label for="artwork-title">Tiêu đề tác phẩm:</label>
-      <input type="text" id="artwork-title" required maxlength="100" placeholder="Tên tác phẩm của bạn">
+
+    <div class="field">
+      <label for="artwork-title">Tiêu đề tác phẩm</label>
+      <input type="text" id="artwork-title" maxlength="100" placeholder="Tên tác phẩm của bạn">
     </div>
-    <div class="form-group">
-      <label for="artwork-desc">Mô tả ngắn / Ý nghĩa sản phẩm:</label>
+
+    <div class="field">
+      <label for="artwork-desc">Mô tả ngắn / Ý nghĩa sản phẩm</label>
       <textarea id="artwork-desc" maxlength="500" placeholder="Giới thiệu đôi nét về sản phẩm..."></textarea>
+      <div class="count"><span id="desc-count">0</span>/500</div>
     </div>
-    <div class="form-group">
-      <label for="artwork-file">Tải lên hình ảnh bài làm (JPG/PNG/WEBP, tối đa 5MB):</label>
-      <input type="file" id="artwork-file" accept="image/jpeg,image/png,image/webp" required>
+
+    <div class="field">
+      <label for="artwork-file">Hình ảnh bài làm (JPG, PNG hoặc WEBP)</label>
+      <input type="file" id="artwork-file" accept="image/jpeg,image/png,image/webp">
+      <div class="hint">Ảnh lớn sẽ được tự động thu nhỏ trước khi gửi.</div>
+      <div class="preview" id="preview">
+        <img id="preview-img" alt="Xem trước ảnh bài làm">
+        <div class="info" id="preview-info"></div>
+      </div>
     </div>
+
     <button type="submit" class="submit-btn" id="btn-submit">🚀 Gửi bài lên hệ thống</button>
+    <div class="status" id="status" role="status" aria-live="polite"></div>
   </form>
-  <div class="note">Mỗi ô chỉ nộp được một lần. Nếu cần sửa bài, hãy báo giáo viên.</div>
-</div>
+
+  <div class="note">Mỗi ô chỉ nộp được một lần. Nếu cần sửa hoặc đổi bài, hãy báo giáo viên.</div>
+</main>
 
 <script type="module">
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
+// ---------- Cấu hình ----------
 const SUPABASE_URL = 'https://nnamdbcctgakutjuxrmt.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5uYW1kYmNjdGdha3V0anV4cm10Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM3Njk2NzQsImV4cCI6MjEwOTM0NTY3NH0.uKvaum7nu6G_GMr7d10ieSVkEQHS01tWygduJpPZ8VI';
-
+const BUCKET = 'uploads';
+const TABLE = 'artworks';
 const TOTAL_SLOTS = 45;
-const MAX_SIZE = 5 * 1024 * 1024;
+const MAX_UPLOAD = 5 * 1024 * 1024;     // ảnh gửi đi tối đa 5MB
+const MAX_PICK = 25 * 1024 * 1024;      // ảnh gốc chọn vào tối đa 25MB
+const MAX_DIM = 1600;                   // cạnh dài tối đa sau khi thu nhỏ
 const ALLOWED = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
 const BTN_TEXT = '🚀 Gửi bài lên hệ thống';
 
@@ -66,103 +130,168 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: { persistSession: false, autoRefreshToken: false }
 });
 
-const form = document.getElementById('submit-form');
-const btn = document.getElementById('btn-submit');
-const slotSelect = document.getElementById('artwork-slot');
+// ---------- Phần tử ----------
+const $ = (id) => document.getElementById(id);
+const form = $('submit-form'), btn = $('btn-submit'), slotsBox = $('slots'), chosen = $('chosen');
+const fileInput = $('artwork-file'), descInput = $('artwork-desc');
+let selectedSlot = null;
+let previewUrl = null;
 
-// Tải danh sách ô, khóa các ô đã có tranh
+// ---------- Tiện ích ----------
+function showStatus(message, kind) {
+  const el = $('status');
+  el.textContent = message;
+  el.className = 'status ' + kind;
+  el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+function clearStatus() { $('status').className = 'status'; $('status').textContent = ''; }
+function setBusy(busy, text) {
+  btn.disabled = busy;
+  btn.textContent = busy ? text : BTN_TEXT;
+}
+function formatSize(bytes) {
+  return bytes >= 1024 * 1024 ? (bytes / 1024 / 1024).toFixed(1) + ' MB' : Math.round(bytes / 1024) + ' KB';
+}
+
+// ---------- Bảng chọn ô ----------
+function renderSlots(taken) {
+  slotsBox.innerHTML = '';
+  for (let i = 1; i <= TOTAL_SLOTS; i++) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'slot';
+    b.textContent = i;
+    b.setAttribute('aria-pressed', String(i === selectedSlot));
+    if (taken.has(i)) {
+      b.disabled = true;
+      b.title = 'Đã có tranh';
+      b.setAttribute('aria-label', `Ô ${i}, đã có tranh`);
+      if (i === selectedSlot) selectedSlot = null;
+    } else {
+      b.setAttribute('aria-label', `Ô ${i}`);
+      b.addEventListener('click', () => selectSlot(i));
+    }
+    slotsBox.appendChild(b);
+  }
+  updateChosen();
+}
+function selectSlot(n) {
+  selectedSlot = n;
+  slotsBox.querySelectorAll('.slot').forEach((el) => {
+    el.setAttribute('aria-pressed', String(Number(el.textContent) === n));
+  });
+  updateChosen();
+}
+function updateChosen() {
+  chosen.textContent = selectedSlot ? `Bạn đã chọn: Tác phẩm số ${selectedSlot}` : '';
+}
 async function loadSlots() {
   let taken = new Set();
   try {
-    const { data, error } = await supabase.from('artworks').select('id');
+    const { data, error } = await supabase.from(TABLE).select('id');
     if (error) throw error;
-    taken = new Set((data || []).map(r => Number(r.id)));
+    taken = new Set((data || []).map((r) => Number(r.id)));
   } catch (e) {
     console.warn('Không đọc được danh sách ô đã dùng:', e);
   }
-  slotSelect.innerHTML = '';
-  const first = document.createElement('option');
-  first.value = '';
-  first.textContent = '-- Chọn ô số thứ tự --';
-  slotSelect.appendChild(first);
-  for (let i = 1; i <= TOTAL_SLOTS; i++) {
-    const opt = document.createElement('option');
-    opt.value = String(i);
-    if (taken.has(i)) {
-      opt.textContent = `Tác phẩm số ${i} (đã có tranh)`;
-      opt.disabled = true;
-    } else {
-      opt.textContent = `Tác phẩm số ${i}`;
-    }
-    slotSelect.appendChild(opt);
+  renderSlots(taken);
+}
+
+// ---------- Xem trước + thu nhỏ ảnh ----------
+fileInput.addEventListener('change', () => {
+  if (previewUrl) { URL.revokeObjectURL(previewUrl); previewUrl = null; }
+  const file = fileInput.files[0];
+  const box = $('preview');
+  if (!file) { box.style.display = 'none'; return; }
+  previewUrl = URL.createObjectURL(file);
+  $('preview-img').src = previewUrl;
+  $('preview-info').textContent = `${file.name} · ${formatSize(file.size)}`;
+  box.style.display = 'block';
+});
+
+descInput.addEventListener('input', () => { $('desc-count').textContent = descInput.value.length; });
+
+// Thu nhỏ ảnh lớn (ảnh chụp từ điện thoại thường 5–12MB). Trả về { blob, ext, type }.
+async function prepareImage(file) {
+  const keepOriginal = { blob: file, ext: ALLOWED[file.type], type: file.type };
+  try {
+    const bitmap = await createImageBitmap(file);
+    const scale = Math.min(1, MAX_DIM / Math.max(bitmap.width, bitmap.height));
+    if (scale === 1 && file.size <= 1.5 * 1024 * 1024) { bitmap.close?.(); return keepOriginal; }
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(bitmap.width * scale);
+    canvas.height = Math.round(bitmap.height * scale);
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#fff';                       // nền trắng cho ảnh PNG trong suốt
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    bitmap.close?.();
+    const blob = await new Promise((res) => canvas.toBlob(res, 'image/jpeg', 0.88));
+    if (!blob) return keepOriginal;
+    return { blob, ext: 'jpg', type: 'image/jpeg' };
+  } catch (e) {
+    console.warn('Không thu nhỏ được ảnh, dùng ảnh gốc:', e);
+    return keepOriginal;
   }
 }
 
-function reset() {
-  btn.textContent = BTN_TEXT;
-  btn.disabled = false;
-}
-
+// ---------- Gửi bài ----------
 form.addEventListener('submit', async (event) => {
   event.preventDefault();
-  btn.textContent = 'Đang xử lý gửi bài...';
-  btn.disabled = true;
+  clearStatus();
 
-  const name = document.getElementById('student-name').value.trim();
-  const slot = parseInt(slotSelect.value, 10);
-  const title = document.getElementById('artwork-title').value.trim();
-  const desc = document.getElementById('artwork-desc').value.trim();
-  const file = document.getElementById('artwork-file').files[0];
+  const name = $('student-name').value.trim();
+  const title = $('artwork-title').value.trim();
+  const desc = descInput.value.trim();
+  const file = fileInput.files[0];
 
-  if (!name || !title || !slot || slot < 1 || slot > TOTAL_SLOTS) {
-    alert('Vui lòng điền đủ thông tin và chọn ô số.');
-    return reset();
-  }
-  if (!file) {
-    alert('Vui lòng chọn file ảnh!');
-    return reset();
-  }
-  const ext = ALLOWED[file.type];
-  if (!ext) {
-    alert('Chỉ nhận ảnh JPG, PNG hoặc WEBP.');
-    return reset();
-  }
-  if (file.size > MAX_SIZE) {
-    alert('Ảnh quá lớn. Vui lòng chọn ảnh nhỏ hơn 5MB.');
-    return reset();
-  }
+  if (!name) return showStatus('Vui lòng nhập họ và tên.', 'err');
+  if (!selectedSlot) return showStatus('Vui lòng chọn một ô để treo tranh.', 'err');
+  if (!title) return showStatus('Vui lòng nhập tiêu đề tác phẩm.', 'err');
+  if (!file) return showStatus('Vui lòng chọn file ảnh bài làm.', 'err');
+  if (!ALLOWED[file.type]) return showStatus('Chỉ nhận ảnh JPG, PNG hoặc WEBP.', 'err');
+  if (file.size > MAX_PICK) return showStatus('Ảnh quá lớn (trên 25MB). Vui lòng chọn ảnh nhỏ hơn.', 'err');
+
+  const slot = selectedSlot;
+  setBusy(true, 'Đang xử lý ảnh...');
 
   try {
-    // 1. Kiểm tra lại ô còn trống (phòng khi bạn khác vừa chọn)
+    // 1. Kiểm tra lại ô còn trống
     const { data: existing, error: checkError } = await supabase
-      .from('artworks').select('id').eq('id', slot).maybeSingle();
+      .from(TABLE).select('id').eq('id', slot).maybeSingle();
     if (checkError) throw new Error('Lỗi kiểm tra ô: ' + checkError.message);
     if (existing) {
       await loadSlots();
-      alert(`Ô số ${slot} vừa có bạn khác chọn. Vui lòng chọn ô khác.`);
-      return reset();
+      throw new Error(`Ô số ${slot} vừa có bạn khác chọn. Vui lòng chọn ô khác.`);
     }
 
-    // 2. Tải ảnh lên với tên duy nhất, KHÔNG cho ghi đè
+    // 2. Chuẩn bị ảnh
+    const img = await prepareImage(file);
+    if (img.blob.size > MAX_UPLOAD) {
+      throw new Error('Ảnh vẫn còn quá nặng (trên 5MB). Vui lòng chọn ảnh khác.');
+    }
+
+    // 3. Tải ảnh lên (tên duy nhất, không ghi đè)
+    setBusy(true, 'Đang tải ảnh lên...');
     const rand = Math.random().toString(36).slice(2, 10);
-    const fileName = `artwork_${slot}_${Date.now()}_${rand}.${ext}`;
+    const fileName = `artwork_${slot}_${Date.now()}_${rand}.${img.ext}`;
     const { error: uploadError } = await supabase.storage
-      .from('uploads')
-      .upload(fileName, file, { cacheControl: '3600', upsert: false, contentType: file.type });
+      .from(BUCKET)
+      .upload(fileName, img.blob, { cacheControl: '3600', upsert: false, contentType: img.type });
     if (uploadError) throw new Error('Lỗi tải ảnh lên Storage: ' + uploadError.message);
 
-    const { data: publicUrlData } = supabase.storage.from('uploads').getPublicUrl(fileName);
+    const { data: urlData } = supabase.storage.from(BUCKET).getPublicUrl(fileName);
 
-    // 3. Thêm bài mới (insert). Nếu ô đã có, cơ sở dữ liệu sẽ từ chối.
-    const { error: dbError } = await supabase.from('artworks').insert([{
+    // 4. Lưu thông tin (insert: ô đã có sẽ bị từ chối)
+    setBusy(true, 'Đang lưu bài...');
+    const { error: dbError } = await supabase.from(TABLE).insert([{
       id: slot,
       title: title,
       author: name,
       description: desc,
-      image_url: publicUrlData.publicUrl,
+      image_url: urlData.publicUrl,
       status: 'approved'
     }]);
-
     if (dbError) {
       if (dbError.code === '23505') {
         await loadSlots();
@@ -171,14 +300,17 @@ form.addEventListener('submit', async (event) => {
       throw new Error('Lỗi lưu cơ sở dữ liệu: ' + dbError.message);
     }
 
-    alert(`🎉 Thành công! Em ${name} đã gửi bài thành công cho Ô số ${slot}.`);
+    showStatus(`🎉 Thành công! Em ${name} đã gửi bài cho ô số ${slot}.`, 'ok');
     form.reset();
+    selectedSlot = null;
+    $('desc-count').textContent = '0';
+    $('preview').style.display = 'none';
     await loadSlots();
   } catch (error) {
     console.error('Chi tiết lỗi:', error);
-    alert('Có lỗi xảy ra: ' + error.message);
+    showStatus('Có lỗi xảy ra: ' + error.message, 'err');
   } finally {
-    reset();
+    setBusy(false);
   }
 });
 
