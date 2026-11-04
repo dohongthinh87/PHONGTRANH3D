@@ -653,11 +653,26 @@
       setStatus('Đang gỡ tranh...', '');
       const oldUrl = art.image;
 
+      // Bước 1: ô này có bài nộp trên hệ thống không?
+      const { data: found, error: findError } = await supabase
+        .from('artworks').select('id, image_url').eq('id', art.id);
+      if (findError) {
+        $('remove-btn').disabled = false;
+        setStatus('Không kiểm tra được ô này: ' + findError.message, 'err');
+        return;
+      }
+      if (!found || found.length === 0) {
+        $('remove-btn').disabled = false;
+        setStatus(`Ô #${art.id} chưa có bài nộp nào trên hệ thống: đây là tranh mặc định trong data.js nên không có gì để gỡ. Muốn đổi tranh này, hãy dùng nút "Thay ảnh tranh này".`, 'err');
+        return;
+      }
+
+      // Bước 2: xóa bài nộp
       const { data, error } = await supabase.from('artworks').delete().eq('id', art.id).select();
       $('remove-btn').disabled = false;
       if (error) { setStatus('Lỗi khi gỡ: ' + error.message, 'err'); return; }
       if (!data || data.length === 0) {
-        setStatus('Ô này chưa có bài nộp nào trên hệ thống (đang là tranh mặc định) nên không có gì để gỡ. Nếu chắc chắn đã có bài, hãy kiểm tra đã chạy supabase_teacher.sql chưa.', 'err');
+        setStatus('Ô này có bài nộp nhưng hệ thống từ chối xóa: tài khoản giáo viên chưa có quyền xóa. Hãy chạy file supabase_teacher.sql trong Supabase (SQL Editor), sau đó đăng xuất, đăng nhập lại và thử lại.', 'err');
         return;
       }
 
