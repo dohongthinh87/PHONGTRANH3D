@@ -64,9 +64,12 @@
     import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
     const SUPABASE_URL = 'https://nnamdbcctgakutjuxrmt.supabase.co';
+    // Sử dụng cấu hình không bắt buộc token xác thực khắt khe ở client
     const SUPABASE_ANON_KEY = 'sb_publishable_mvUzfankFVz9zbhGWuPMxw_GZketbmc';
 
-    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      auth: { persistSession: false }
+    });
 
     window.handleSubmit = async function(event) {
       event.preventDefault();
@@ -93,7 +96,10 @@
         const fileName = `artwork_${slot}_${Date.now()}.${file.name.split('.').pop()}`;
         const { data: uploadData, error: uploadError } = await supabase.storage
           .from('uploads')
-          .upload(fileName, file);
+          .upload(fileName, file, {
+            cacheControl: '3600',
+            upsert: true
+          });
 
         if (uploadError) throw uploadError;
 
