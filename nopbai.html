@@ -6,7 +6,7 @@
   <title>Cổng Nộp Bài Triển Lãm 3D</title>
   <style>
     body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; margin: 0; padding: 20px; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
-    .container { background: #fff; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 500px; }
+    .container { background: #fff; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 500px; box-sizing: border-box; }
     h2 { color: #1a73e8; text-align: center; margin-bottom: 20px; }
     .form-group { margin-bottom: 15px; }
     label { display: block; font-weight: bold; margin-bottom: 5px; color: #333; font-size: 14px; }
@@ -14,7 +14,7 @@
     textarea { resize: vertical; height: 80px; }
     .submit-btn { background: #28a745; color: white; border: none; padding: 12px; width: 100%; border-radius: 6px; font-weight: bold; font-size: 16px; cursor: pointer; transition: background 0.2s; }
     .submit-btn:hover { background: #218838; }
-    .note { font-size: 12px; color: #666; text-align: center; margin-top: 15px; }
+    .note { font-size: 12px; color: #666; text-align: center; margin-top: 15px; line-height: 1.5; }
   </style>
 </head>
 <body>
@@ -36,7 +36,6 @@
         <label>Chọn số thứ tự tranh muốn treo (Từ 1 đến 45):</label>
         <select id="artwork-slot" required>
           <option value="">-- Chọn ô số thứ tự --</option>
-          <!-- Tự động sinh danh sách 45 ô -->
           <script>
             for(let i=1; i<=45; i++) {
               document.write(`<option value="${i}">Tác phẩm số ${i}</option>`);
@@ -56,13 +55,13 @@
       </div>
 
       <div class="form-group">
-        <label>Tải lên hình ảnh bài làm (Định dạng JPG/PNG):</label>
+        <label>Tải lên hình ảnh bài làm (JPG/PNG):</label>
         <input type="file" id="artwork-file" accept="image/*" required>
       </div>
 
       <button type="submit" class="submit-btn" id="btn-submit">🚀 Gửi bài cho Giáo viên</button>
     </form>
-    <div class="note">Sau khi gửi, giáo viên sẽ kiểm duyệt và treo lên phòng tranh 3D chính thức.</div>
+    <div class="note">Sau khi gửi thành công, giáo viên sẽ kiểm duyệt và treo vào phòng tranh 3D chính thức.</div>
   </div>
 
   <script>
@@ -81,7 +80,6 @@
         reader.onload = function(e) {
           const base64Image = e.target.result;
           
-          // Lưu tạm bài nộp vào localStorage của trình duyệt (Giáo viên có thể vào xem và duyệt)
           const submissionKey = `pending_submission_${slot}`;
           const subData = {
             name: name,
@@ -94,7 +92,7 @@
           
           localStorage.setItem(submissionKey, JSON.stringify(subData));
           
-          alert(`Cảm ơn em ${name}! Bài nộp cho Tác phẩm số ${slot} đã được gửi thành công đến giáo viên.`);
+          alert(`Cảm ơn em ${name}! Bài nộp cho Tác phẩm số ${slot} đã được lưu thành công.`);
           document.getElementById('submit-form').reset();
         };
         
