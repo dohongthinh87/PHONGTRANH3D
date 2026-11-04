@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Cổng Nộp Bài Triển Lãm 3D</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; margin: 0; padding: 20px; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
     .container { background: #fff; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 500px; box-sizing: border-box; }
@@ -25,11 +26,6 @@
       <div class="form-group">
         <label>Họ và tên học sinh:</label>
         <input type="text" id="student-name" required placeholder="Ví dụ: Nguyễn Văn A">
-      </div>
-
-      <div class="form-group">
-        <label>Lớp:</label>
-        <input type="text" id="student-class" required placeholder="Ví dụ: 10A1">
       </div>
 
       <div class="form-group">
@@ -59,38 +55,72 @@
         <input type="file" id="artwork-file" accept="image/*" required>
       </div>
 
-      <button type="submit" class="submit-btn" id="btn-submit">🚀 Gửi bài & Tải về máy giáo viên</button>
+      <button type="submit" class="submit-btn" id="btn-submit">🚀 Gửi bài lên hệ thống</button>
     </form>
-    <div class="note">Khi học sinh bấm gửi, hệ thống sẽ đồng thời tải file ảnh bài làm về máy để giáo viên đưa vào phòng tranh 3D.</div>
+    <div class="note">Sau khi gửi, giáo viên sẽ kiểm duyệt và đưa vào phòng tranh 3D chính thức.</div>
   </div>
 
-  <script>
-    function handleSubmit(event) {
+  <script type="module">
+    import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+    const SUPABASE_URL = 'https://nnamdbcctgakutjuxrmt.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_mvUzfankFVz9zbhGWuPMxw_GZketbmc';
+
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    window.handleSubmit = async function(event) {
       event.preventDefault();
       
-      const name = document.getElementById('student-name').value;
-      const slot = document.getElementById('artwork-slot').value;
-      const title = document.getElementById('artwork-title').value;
-      const fileInput = document.getElementById('artwork-file');
-      
-      if(fileInput.files.length > 0) {
-        const file = fileInput.files[0];
-        
-        // Tạo đường link tải file tự động về máy khi học sinh nộp
-        const url = URL.createObjectURL(file);
-        const a = document.createElement('a');
-        a.href = url;
-        // Đặt tên file tải về theo đúng số ô tranh và tên học sinh (Ví dụ: O_45_NguyenVanA.jpg)
-        a.download = `O_So_${slot}_${name.replace(/\s+/g, '_')}.${file.name.split('.').pop()}`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
+      const btn = document.getElementById('btn-submit');
+      btn.innerText = "Đang tải lên hệ thống...";
+      btn.disabled = true;
 
-        alert(`Thành công! Em ${name} đã gửi bài cho Ô số ${slot}. File ảnh bài làm đã được tải về máy của giáo viên/thiết bị nộp.`);
-        document.getElementById('submit-form-reset').click();
-        document.getElementById('submit-form').reset();
+      const name = document.getElementById('student-name').value;
+      const slot = parseInt(document.getElementById('artwork-slot').value);
+      const title = document.getElementById('artwork-title').value;
+      const desc = document.getElementById('artwork-desc').value;
+      const fileInput = document.getElementById('artwork-file');
+      const file = fileInput.files[0];
+
+      if (!file) {
+        alert("Vui lòng chọn file ảnh!");
+        btn.innerText = "🚀 Gửi bài lên hệ thống";
+        btn.disabled = false;
+        return;
       }
-    }
+
+      try {
+        const fileName = `artwork_${slot}_${Date.now()}.${file.name.split('.').pop()}`;
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('uploads')
+          .upload(fileName, file);
+
+        if (uploadError) throw uploadError;
+
+        const { data: publicUrlData } = supabase.storage
+          .from('uploads')
+          .getPublicUrl(fileName);
+
+        const imageUrl = publicUrlData.publicUrl;
+
+        const { error: dbError } = await supabase
+          .from('artworks')
+          .upsert([
+            { id: slot, title: title, author: name, description: desc, image_url: imageUrl, status: 'approved' }
+          ]);
+
+        if (dbError) throw dbError;
+
+        alert(`Thành công! Em ${name} đã nộp bài thành công cho Ô số ${slot}.`);
+        document.getElementById('submit-form').reset();
+      } catch (error) {
+        console.error(error);
+        alert("Có lỗi xảy ra khi gửi bài: " + error.message);
+      } finally {
+        btn.innerText = "🚀 Gửi bài lên hệ thống";
+        btn.disabled = false;
+      }
+    };
   </script>
 </body>
 </html>
