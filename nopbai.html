@@ -1,142 +1,188 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Cổng Nộp Bài Triển Lãm 3D</title>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <style>
-    body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; margin: 0; padding: 20px; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
-    .container { background: #fff; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 500px; box-sizing: border-box; }
-    h2 { color: #1a73e8; text-align: center; margin-bottom: 20px; }
-    .form-group { margin-bottom: 15px; }
-    label { display: block; font-weight: bold; margin-bottom: 5px; color: #333; font-size: 14px; }
-    input[type="text"], select, input[type="file"], textarea { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 14px; }
-    textarea { resize: vertical; height: 80px; }
-    .submit-btn { background: #28a745; color: white; border: none; padding: 12px; width: 100%; border-radius: 6px; font-weight: bold; font-size: 16px; cursor: pointer; transition: background 0.2s; }
-    .submit-btn:hover { background: #218838; }
-    .note { font-size: 12px; color: #666; text-align: center; margin-top: 15px; line-height: 1.5; }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cổng Nộp Bài Triển Lãm 3D</title>
+<style>
+body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; margin: 0; padding: 20px; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+.container { background: #fff; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 500px; box-sizing: border-box; }
+h2 { color: #1a73e8; text-align: center; margin-bottom: 20px; }
+.form-group { margin-bottom: 15px; }
+label { display: block; font-weight: bold; margin-bottom: 5px; color: #333; font-size: 14px; }
+input[type="text"], select, input[type="file"], textarea { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 14px; }
+textarea { resize: vertical; height: 80px; }
+.submit-btn { background: #28a745; color: white; border: none; padding: 12px; width: 100%; border-radius: 6px; font-weight: bold; font-size: 16px; cursor: pointer; transition: background 0.2s; }
+.submit-btn:hover { background: #218838; }
+.submit-btn:disabled { background: #9aa5a0; cursor: not-allowed; }
+.note { font-size: 12px; color: #666; text-align: center; margin-top: 15px; line-height: 1.5; }
+.hint { font-size: 12px; color: #666; margin-top: 4px; }
+</style>
 </head>
 <body>
+<div class="container">
+  <h2>🎨 Cổng Nộp Bài Học Sinh</h2>
+  <form id="submit-form">
+    <div class="form-group">
+      <label for="student-name">Họ và tên học sinh:</label>
+      <input type="text" id="student-name" required maxlength="80" placeholder="Ví dụ: Nguyễn Văn A">
+    </div>
+    <div class="form-group">
+      <label for="artwork-slot">Chọn số thứ tự tranh muốn treo (Từ 1 đến 45):</label>
+      <select id="artwork-slot" required>
+        <option value="">Đang tải danh sách ô...</option>
+      </select>
+      <div class="hint">Ô ghi "đã có tranh" đã được chọn và không thể chọn lại.</div>
+    </div>
+    <div class="form-group">
+      <label for="artwork-title">Tiêu đề tác phẩm:</label>
+      <input type="text" id="artwork-title" required maxlength="100" placeholder="Tên tác phẩm của bạn">
+    </div>
+    <div class="form-group">
+      <label for="artwork-desc">Mô tả ngắn / Ý nghĩa sản phẩm:</label>
+      <textarea id="artwork-desc" maxlength="500" placeholder="Giới thiệu đôi nét về sản phẩm..."></textarea>
+    </div>
+    <div class="form-group">
+      <label for="artwork-file">Tải lên hình ảnh bài làm (JPG/PNG/WEBP, tối đa 5MB):</label>
+      <input type="file" id="artwork-file" accept="image/jpeg,image/png,image/webp" required>
+    </div>
+    <button type="submit" class="submit-btn" id="btn-submit">🚀 Gửi bài lên hệ thống</button>
+  </form>
+  <div class="note">Mỗi ô chỉ nộp được một lần. Nếu cần sửa bài, hãy báo giáo viên.</div>
+</div>
 
-  <div class="container">
-    <h2>🎨 Cổng Nộp Bài Học Sinh</h2>
-    <form id="submit-form" onsubmit="handleSubmit(event)">
-      <div class="form-group">
-        <label>Họ và tên học sinh:</label>
-        <input type="text" id="student-name" required placeholder="Ví dụ: Nguyễn Văn A">
-      </div>
+<script type="module">
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-      <div class="form-group">
-        <label>Chọn số thứ tự tranh muốn treo (Từ 1 đến 45):</label>
-        <select id="artwork-slot" required>
-          <option value="">-- Chọn ô số thứ tự --</option>
-          <script>
-            for(let i=1; i<=45; i++) {
-              document.write(`<option value="${i}">Tác phẩm số ${i}</option>`);
-            }
-          </script>
-        </select>
-      </div>
+const SUPABASE_URL = 'https://nnamdbcctgakutjuxrmt.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5uYW1kYmNjdGdha3V0anV4cm10Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM3Njk2NzQsImV4cCI6MjEwOTM0NTY3NH0.uKvaum7nu6G_GMr7d10ieSVkEQHS01tWygduJpPZ8VI';
 
-      <div class="form-group">
-        <label>Tiêu đề tác phẩm:</label>
-        <input type="text" id="artwork-title" required placeholder="Tên tác phẩm của bạn">
-      </div>
+const TOTAL_SLOTS = 45;
+const MAX_SIZE = 5 * 1024 * 1024;
+const ALLOWED = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
+const BTN_TEXT = '🚀 Gửi bài lên hệ thống';
 
-      <div class="form-group">
-        <label>Mô tả ngắn / Ý nghĩa sản phẩm:</label>
-        <textarea id="artwork-desc" placeholder="Giới thiệu đôi nét về sản phẩm..."></textarea>
-      </div>
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: { persistSession: false, autoRefreshToken: false }
+});
 
-      <div class="form-group">
-        <label>Tải lên hình ảnh bài làm (JPG/PNG):</label>
-        <input type="file" id="artwork-file" accept="image/*" required>
-      </div>
+const form = document.getElementById('submit-form');
+const btn = document.getElementById('btn-submit');
+const slotSelect = document.getElementById('artwork-slot');
 
-      <button type="submit" class="submit-btn" id="btn-submit">🚀 Gửi bài lên hệ thống</button>
-    </form>
-    <div class="note">Sau khi gửi, giáo viên sẽ kiểm duyệt và đưa vào phòng tranh 3D chính thức.</div>
-  </div>
+// Tải danh sách ô, khóa các ô đã có tranh
+async function loadSlots() {
+  let taken = new Set();
+  try {
+    const { data, error } = await supabase.from('artworks').select('id');
+    if (error) throw error;
+    taken = new Set((data || []).map(r => Number(r.id)));
+  } catch (e) {
+    console.warn('Không đọc được danh sách ô đã dùng:', e);
+  }
+  slotSelect.innerHTML = '';
+  const first = document.createElement('option');
+  first.value = '';
+  first.textContent = '-- Chọn ô số thứ tự --';
+  slotSelect.appendChild(first);
+  for (let i = 1; i <= TOTAL_SLOTS; i++) {
+    const opt = document.createElement('option');
+    opt.value = String(i);
+    if (taken.has(i)) {
+      opt.textContent = `Tác phẩm số ${i} (đã có tranh)`;
+      opt.disabled = true;
+    } else {
+      opt.textContent = `Tác phẩm số ${i}`;
+    }
+    slotSelect.appendChild(opt);
+  }
+}
 
-  <script type="module">
-    import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+function reset() {
+  btn.textContent = BTN_TEXT;
+  btn.disabled = false;
+}
 
-    const SUPABASE_URL = 'https://nnamdbcctgakutjuxrmt.supabase.co';
-    // Đã thay thế bằng khóa chuẩn JWT eyJ...
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5uYW1kYmNjdGdha3V0anV4cm10Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM3Njk2NzQsImV4cCI6MjEwOTM0NTY3NH0.uKvaum7nu6G_GMr7d10ieSVkEQHS01tWygduJpPZ8VI';
+form.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  btn.textContent = 'Đang xử lý gửi bài...';
+  btn.disabled = true;
 
-    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-      auth: { persistSession: false, autoRefreshToken: false }
-    });
+  const name = document.getElementById('student-name').value.trim();
+  const slot = parseInt(slotSelect.value, 10);
+  const title = document.getElementById('artwork-title').value.trim();
+  const desc = document.getElementById('artwork-desc').value.trim();
+  const file = document.getElementById('artwork-file').files[0];
 
-    window.handleSubmit = async function(event) {
-      event.preventDefault();
-      
-      const btn = document.getElementById('btn-submit');
-      btn.innerText = "Đang xử lý gửi bài...";
-      btn.disabled = true;
+  if (!name || !title || !slot || slot < 1 || slot > TOTAL_SLOTS) {
+    alert('Vui lòng điền đủ thông tin và chọn ô số.');
+    return reset();
+  }
+  if (!file) {
+    alert('Vui lòng chọn file ảnh!');
+    return reset();
+  }
+  const ext = ALLOWED[file.type];
+  if (!ext) {
+    alert('Chỉ nhận ảnh JPG, PNG hoặc WEBP.');
+    return reset();
+  }
+  if (file.size > MAX_SIZE) {
+    alert('Ảnh quá lớn. Vui lòng chọn ảnh nhỏ hơn 5MB.');
+    return reset();
+  }
 
-      const name = document.getElementById('student-name').value;
-      const slot = parseInt(document.getElementById('artwork-slot').value);
-      const title = document.getElementById('artwork-title').value;
-      const desc = document.getElementById('artwork-desc').value;
-      const fileInput = document.getElementById('artwork-file');
-      const file = fileInput.files[0];
+  try {
+    // 1. Kiểm tra lại ô còn trống (phòng khi bạn khác vừa chọn)
+    const { data: existing, error: checkError } = await supabase
+      .from('artworks').select('id').eq('id', slot).maybeSingle();
+    if (checkError) throw new Error('Lỗi kiểm tra ô: ' + checkError.message);
+    if (existing) {
+      await loadSlots();
+      alert(`Ô số ${slot} vừa có bạn khác chọn. Vui lòng chọn ô khác.`);
+      return reset();
+    }
 
-      if (!file) {
-        alert("Vui lòng chọn file ảnh!");
-        btn.innerText = "🚀 Gửi bài lên hệ thống";
-        btn.disabled = false;
-        return;
+    // 2. Tải ảnh lên với tên duy nhất, KHÔNG cho ghi đè
+    const rand = Math.random().toString(36).slice(2, 10);
+    const fileName = `artwork_${slot}_${Date.now()}_${rand}.${ext}`;
+    const { error: uploadError } = await supabase.storage
+      .from('uploads')
+      .upload(fileName, file, { cacheControl: '3600', upsert: false, contentType: file.type });
+    if (uploadError) throw new Error('Lỗi tải ảnh lên Storage: ' + uploadError.message);
+
+    const { data: publicUrlData } = supabase.storage.from('uploads').getPublicUrl(fileName);
+
+    // 3. Thêm bài mới (insert). Nếu ô đã có, cơ sở dữ liệu sẽ từ chối.
+    const { error: dbError } = await supabase.from('artworks').insert([{
+      id: slot,
+      title: title,
+      author: name,
+      description: desc,
+      image_url: publicUrlData.publicUrl,
+      status: 'approved'
+    }]);
+
+    if (dbError) {
+      if (dbError.code === '23505') {
+        await loadSlots();
+        throw new Error(`Ô số ${slot} đã có tranh. Vui lòng chọn ô khác.`);
       }
+      throw new Error('Lỗi lưu cơ sở dữ liệu: ' + dbError.message);
+    }
 
-      try {
-        const fileExt = file.name.split('.').pop();
-        const fileName = `artwork_${slot}_${Date.now()}.${fileExt}`;
-        
-        const { error: uploadError } = await supabase.storage
-          .from('uploads')
-          .upload(fileName, file, { cacheControl: '3600', upsert: true });
+    alert(`🎉 Thành công! Em ${name} đã gửi bài thành công cho Ô số ${slot}.`);
+    form.reset();
+    await loadSlots();
+  } catch (error) {
+    console.error('Chi tiết lỗi:', error);
+    alert('Có lỗi xảy ra: ' + error.message);
+  } finally {
+    reset();
+  }
+});
 
-        if (uploadError) {
-          throw new Error("Lỗi tải ảnh lên Storage: " + uploadError.message);
-        }
-
-        const { data: publicUrlData } = supabase.storage
-          .from('uploads')
-          .getPublicUrl(fileName);
-
-        const imageUrl = publicUrlData.publicUrl;
-
-        const { error: dbError } = await supabase
-          .from('artworks')
-          .upsert([
-            { 
-              id: slot, 
-              title: title, 
-              author: name, 
-              description: desc, 
-              image_url: imageUrl, 
-              status: 'approved' 
-            }
-          ], { onConflict: ['id'] });
-
-        if (dbError) {
-          throw new Error("Lỗi lưu cơ sở dữ liệu: " + dbError.message);
-        }
-
-        alert(`🎉 Thành công! Em ${name} đã gửi bài thành công cho Ô số ${slot}.`);
-        document.getElementById('submit-form').reset();
-      } catch (error) {
-        console.error("Chi tiết lỗi:", error);
-        alert("Có lỗi xảy ra: " + error.message);
-      } finally {
-        btn.innerText = "🚀 Gửi bài lên hệ thống";
-        btn.disabled = false;
-      }
-    };
-  </script>
+loadSlots();
+</script>
 </body>
 </html>
