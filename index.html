@@ -128,6 +128,7 @@
     • Di chuyển: W,A,S,D hoặc phím ảo<br>
     • Xoay góc nhìn: Kéo/Vuốt màn hình<br>
     • Click vào tranh để xem chi tiết
+    <div id="hud-teacher" style="display:none; color:#ffc107; margin-top:4px;">★ Chế độ giáo viên: click vào bất kỳ tranh nào để thay ảnh</div>
   </div>
 
   <button id="teacher-login-btn" onclick="toggleTeacherMode()">🔒 Giáo viên Quản trị</button>
@@ -164,7 +165,7 @@
       <div class="modal-img-box">
         <img id="m-img" class="modal-img" src="" alt="Tác phẩm">
         <div id="teacher-edit-box" class="teacher-tools">
-          <label class="upload-btn-label" for="upload-file-input">🖼️ Tải ảnh thay thế lên Supabase</label>
+          <label class="upload-btn-label" for="upload-file-input">🖼️ Thay ảnh tranh này (tự động lưu)</label>
           <input type="file" id="upload-file-input" accept="image/jpeg,image/png,image/webp" onchange="handleImageUpload(event)">
         </div>
       </div>
@@ -235,6 +236,7 @@
       const btn = $('teacher-login-btn');
       btn.innerText = on ? '🔓 Đang ở chế độ Giáo viên' : '🔒 Giáo viên Quản trị';
       btn.classList.toggle('logged-in', on);
+      $('hud-teacher').style.display = on ? 'block' : 'none';
     }
 
     function openLogin() {
@@ -348,14 +350,12 @@
       ctx.font = '24px sans-serif';
       ctx.fillText(title || '', 256, 235);
       const tex = new THREE.CanvasTexture(canvas);
-      tex.colorSpace = THREE.SRGBColorSpace;
       return { tex, dataUrl: canvas.toDataURL('image/png') };
     }
 
     function loadIntoMaterial(mat, url) {
       if (!url) return;
       texLoader.load(url, (tex) => {
-        tex.colorSpace = THREE.SRGBColorSpace;
         mat.map = tex;
         mat.needsUpdate = true;
       }, undefined, () => { console.warn('Không tải được ảnh:', url); });
@@ -551,34 +551,75 @@
     };
 
     // ---------- Giáo viên thay ảnh ----------
+    // Thu nhỏ ảnh lớn (ảnh chụp điện thoại) để tải nhanh và không vượt giới hạn
+    async function shrinkImage(file, extMap) {
+      const original = { blob: file, ext: extMap[file.type], type: file.type };
+      try {
+        const bmp = await createImageBitmap(file);
+        const scale = Math.min(1, 1600 / Math.max(bmp.width, bmp.height));
+        if (scale === 1 && file.size <= 1.5 * 1024 * 1024) { bmp.close?.(); return original; }
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.round(bmp.width * scale);
+        canvas.height = Math.round(bmp.height * scale);
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(bmp, 0, 0, canvas.width, canvas.height);
+        bmp.close?.();
+        const blob = await new Promise((res) => canvas.toBlob(res, 'image/jpeg', 0.88));
+        return blob ? { blob, ext: 'jpg', type: 'image/jpeg' } : original;
+      } catch (e) {
+        return original;
+      }
+    }
+
+    // Thay ảnh cho BẤT KỲ tranh nào: tải ảnh lên rồi tự động lưu luôn
     window.handleImageUpload = async (event) => {
       const file = event.target.files[0];
       event.target.value = '';
-      if (!file || !currentSelectedArtwork) return;
+      const art = currentSelectedArtwork;   // giữ lại phòng khi đóng hộp giữa chừng
+      if (!file || !art) return;
       if (!isTeacherLoggedIn) { setStatus('Bạn cần đăng nhập giáo viên để tải ảnh.', 'err'); return; }
 
       const extMap = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
-      const ext = extMap[file.type];
-      if (!ext) { setStatus('Chỉ nhận ảnh JPG, PNG hoặc WEBP.', 'err'); return; }
-      if (file.size > 5 * 1024 * 1024) { setStatus('Ảnh quá lớn (trên 5MB).', 'err'); return; }
+      if (!extMap[file.type]) { setStatus('Chỉ nhận ảnh JPG, PNG hoặc WEBP.', 'err'); return; }
+      if (file.size > 25 * 1024 * 1024) { setStatus('Ảnh quá lớn (trên 25MB).', 'err'); return; }
+
+      setStatus('Đang xử lý ảnh...', '');
+      const img = await shrinkImage(file, extMap);
+      if (img.blob.size > 5 * 1024 * 1024) { setStatus('Ảnh vẫn quá nặng (trên 5MB), hãy chọn ảnh khác.', 'err'); return; }
 
       setStatus('Đang tải ảnh lên...', '');
       const rand = Math.random().toString(36).slice(2, 8);
-      const fileName = `artwork_${currentSelectedArtwork.id}_${Date.now()}_${rand}.${ext}`;
+      const fileName = `artwork_${art.id}_${Date.now()}_${rand}.${img.ext}`;
 
       const { error: uploadError } = await supabase.storage
         .from('uploads')
-        .upload(fileName, file, { cacheControl: '3600', upsert: false, contentType: file.type });
+        .upload(fileName, img.blob, { cacheControl: '3600', upsert: false, contentType: img.type });
       if (uploadError) { setStatus('Lỗi tải ảnh: ' + uploadError.message, 'err'); return; }
 
       const { data: urlData } = supabase.storage.from('uploads').getPublicUrl(fileName);
-      currentSelectedArtwork.image = urlData.publicUrl;
-      setModalImage(currentSelectedArtwork);
+      art.image = urlData.publicUrl;
+      if (currentSelectedArtwork === art) setModalImage(art);
 
-      const mat = materialsMap.get(currentSelectedArtwork.id);
-      if (mat) loadIntoMaterial(mat, currentSelectedArtwork.image);
+      const mat = materialsMap.get(art.id);
+      if (mat) loadIntoMaterial(mat, art.image);
 
-      setStatus('Đã tải ảnh lên. Hãy bấm "Lưu thay đổi" để lưu vào hệ thống.', 'ok');
+      // Tự động lưu vào bảng để ảnh mới còn mãi (cả với ô chưa có dữ liệu trên Supabase)
+      setStatus('Đang lưu ảnh mới...', '');
+      const { error: dbError } = await supabase.from('artworks').upsert([{
+        id: art.id,
+        title: art.title || null,
+        author: art.author || null,
+        description: art.description || null,
+        image_url: art.image,
+        status: 'approved'
+      }]);
+      if (dbError) {
+        setStatus('Ảnh đã tải lên nhưng chưa lưu được: ' + dbError.message, 'err');
+      } else {
+        setStatus(`✅ Đã thay ảnh và lưu cho Tác phẩm #${art.id}.`, 'ok');
+      }
     };
 
     window.addEventListener('click', (e) => {
