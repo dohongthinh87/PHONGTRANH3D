@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cổng Nộp Bài Triển Lãm 3D</title>
+  <style>
+    body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; margin: 0; padding: 20px; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+    .container { background: #fff; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 500px; }
+    h2 { color: #1a73e8; text-align: center; margin-bottom: 20px; }
+    .form-group { margin-bottom: 15px; }
+    label { display: block; font-weight: bold; margin-bottom: 5px; color: #333; font-size: 14px; }
+    input[type="text"], select, input[type="file"], textarea { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 14px; }
+    textarea { resize: vertical; height: 80px; }
+    .submit-btn { background: #28a745; color: white; border: none; padding: 12px; width: 100%; border-radius: 6px; font-weight: bold; font-size: 16px; cursor: pointer; transition: background 0.2s; }
+    .submit-btn:hover { background: #218838; }
+    .note { font-size: 12px; color: #666; text-align: center; margin-top: 15px; }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <h2>🎨 Cổng Nộp Bài Học Sinh</h2>
+    <form id="submit-form" onsubmit="handleSubmit(event)">
+      <div class="form-group">
+        <label>Họ và tên học sinh:</label>
+        <input type="text" id="student-name" required placeholder="Ví dụ: Nguyễn Văn A">
+      </div>
+
+      <div class="form-group">
+        <label>Lớp:</label>
+        <input type="text" id="student-class" required placeholder="Ví dụ: 10A1">
+      </div>
+
+      <div class="form-group">
+        <label>Chọn số thứ tự tranh muốn treo (Từ 1 đến 45):</label>
+        <select id="artwork-slot" required>
+          <option value="">-- Chọn ô số thứ tự --</option>
+          <!-- Tự động sinh danh sách 45 ô -->
+          <script>
+            for(let i=1; i<=45; i++) {
+              document.write(`<option value="${i}">Tác phẩm số ${i}</option>`);
+            }
+          </script>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Tiêu đề tác phẩm:</label>
+        <input type="text" id="artwork-title" required placeholder="Tên tác phẩm của bạn">
+      </div>
+
+      <div class="form-group">
+        <label>Mô tả ngắn / Ý nghĩa sản phẩm:</label>
+        <textarea id="artwork-desc" placeholder="Giới thiệu đôi nét về sản phẩm..."></textarea>
+      </div>
+
+      <div class="form-group">
+        <label>Tải lên hình ảnh bài làm (Định dạng JPG/PNG):</label>
+        <input type="file" id="artwork-file" accept="image/*" required>
+      </div>
+
+      <button type="submit" class="submit-btn" id="btn-submit">🚀 Gửi bài cho Giáo viên</button>
+    </form>
+    <div class="note">Sau khi gửi, giáo viên sẽ kiểm duyệt và treo lên phòng tranh 3D chính thức.</div>
+  </div>
+
+  <script>
+    function handleSubmit(event) {
+      event.preventDefault();
+      
+      const name = document.getElementById('student-name').value;
+      const slot = document.getElementById('artwork-slot').value;
+      const title = document.getElementById('artwork-title').value;
+      const fileInput = document.getElementById('artwork-file');
+      
+      if(fileInput.files.length > 0) {
+        const file = fileInput.files[0];
+        const reader = new FileReader();
+        
+        reader.onload = function(e) {
+          const base64Image = e.target.result;
+          
+          // Lưu tạm bài nộp vào localStorage của trình duyệt (Giáo viên có thể vào xem và duyệt)
+          const submissionKey = `pending_submission_${slot}`;
+          const subData = {
+            name: name,
+            slot: slot,
+            title: title,
+            desc: document.getElementById('artwork-desc').value,
+            image: base64Image,
+            time: new Date().toLocaleString()
+          };
+          
+          localStorage.setItem(submissionKey, JSON.stringify(subData));
+          
+          alert(`Cảm ơn em ${name}! Bài nộp cho Tác phẩm số ${slot} đã được gửi thành công đến giáo viên.`);
+          document.getElementById('submit-form').reset();
+        };
+        
+        reader.readAsDataURL(file);
+      }
+    }
+  </script>
+</body>
+</html>
