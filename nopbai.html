@@ -96,7 +96,7 @@
         const fileExt = file.name.split('.').pop();
         const fileName = `artwork_${slot}_${Date.now()}.${fileExt}`;
         
-        const { data: uploadData, error: uploadError } = await supabase.storage
+        const { error: uploadError } = await supabase.storage
           .from('uploads')
           .upload(fileName, file, { cacheControl: '3600', upsert: true });
 
