@@ -92,6 +92,12 @@
     }
     .save-btn:hover:not(:disabled) { background: #1557b0; }
     .save-btn:disabled { background: #9aa5a0; cursor: not-allowed; }
+    .remove-btn {
+      background: #d93025; color: white; border: none; padding: 10px; border-radius: 6px;
+      font-weight: bold; cursor: pointer; font-size: 14px; text-align: center;
+    }
+    .remove-btn:hover:not(:disabled) { background: #b3261e; }
+    .remove-btn:disabled { background: #9aa5a0; cursor: not-allowed; }
     #upload-file-input { display: none; }
     #teacher-status { font-size: 13px; min-height: 18px; line-height: 1.4; }
     #teacher-status.ok { color: #137333; }
@@ -188,6 +194,7 @@
           <textarea id="edit-desc" rows="3" maxlength="500"></textarea>
 
           <button class="save-btn" id="save-btn" onclick="saveTeacherChanges()">💾 Lưu thay đổi lên hệ thống</button>
+          <button class="remove-btn" id="remove-btn" onclick="removeArtwork()">🗑️ Gỡ bỏ tranh này (không phù hợp)</button>
           <div id="teacher-status" role="status" aria-live="polite"></div>
         </div>
 
@@ -391,6 +398,12 @@
         description: currentDesc,
         image: currentImage,
         fallbackUrl: fallback.dataUrl,
+        defaults: {
+          title: dataItem.title,
+          author: dataItem.author,
+          description: dataItem.description,
+          image: dataItem.image
+        },
         audio: dataItem.audio || '',
         externalLink: dataItem.externalLink || ''
       };
@@ -627,6 +640,60 @@
       if (dragMoved) { dragMoved = false; return; } // vừa kéo xoay, không tính là click
       handleSelect(e.clientX, e.clientY);
     });
+
+    // Gỡ tranh không phù hợp: xóa bài nộp khỏi hệ thống, ô trở về tranh mặc định
+    // và học sinh có thể nộp bài mới vào ô này.
+    window.removeArtwork = async () => {
+      const art = currentSelectedArtwork;
+      if (!art) return;
+      if (!isTeacherLoggedIn) { setStatus('Bạn cần đăng nhập giáo viên để gỡ tranh.', 'err'); return; }
+      if (!confirm(`Gỡ bỏ Tác phẩm #${art.id} ("${art.title}")?\n\nBài nộp sẽ bị xóa khỏi hệ thống và ô này sẽ trống để học sinh nộp lại.`)) return;
+
+      $('remove-btn').disabled = true;
+      setStatus('Đang gỡ tranh...', '');
+      const oldUrl = art.image;
+
+      const { data, error } = await supabase.from('artworks').delete().eq('id', art.id).select();
+      $('remove-btn').disabled = false;
+      if (error) { setStatus('Lỗi khi gỡ: ' + error.message, 'err'); return; }
+      if (!data || data.length === 0) {
+        setStatus('Ô này chưa có bài nộp nào trên hệ thống (đang là tranh mặc định) nên không có gì để gỡ. Nếu chắc chắn đã có bài, hãy kiểm tra đã chạy supabase_teacher.sql chưa.', 'err');
+        return;
+      }
+
+      // Dọn file ảnh cũ trong Storage (nếu lỗi cũng không sao)
+      try {
+        const marker = '/storage/v1/object/public/uploads/';
+        const i = oldUrl ? oldUrl.indexOf(marker) : -1;
+        if (i >= 0) {
+          const path = decodeURIComponent(oldUrl.slice(i + marker.length).split('?')[0]);
+          await supabase.storage.from('uploads').remove([path]);
+        }
+      } catch (e) { console.warn('Không xóa được file ảnh cũ:', e); }
+
+      // Trả tranh về nội dung mặc định trong data.js
+      const d = art.defaults || {};
+      art.title = d.title; art.author = d.author; art.description = d.description; art.image = d.image;
+      delete dynamicArtworksData[art.id];
+
+      const fb = createFallbackTexture(art.id, d.title);
+      art.fallbackUrl = fb.dataUrl;
+      const mat = materialsMap.get(art.id);
+      if (mat) {
+        mat.map = fb.tex;           // hiện ngay tranh mặc định, tránh còn ảnh cũ nếu ảnh mặc định lỗi
+        mat.needsUpdate = true;
+        loadIntoMaterial(mat, d.image);
+      }
+
+      $('m-title').innerText = art.title || '';
+      $('m-author').innerText = 'Tác giả: ' + (art.author || '');
+      $('m-desc').innerText = art.description || '';
+      $('edit-title').value = art.title || '';
+      $('edit-author').value = art.author || '';
+      $('edit-desc').value = art.description || '';
+      setModalImage(art);
+      setStatus(`✅ Đã gỡ Tác phẩm #${art.id}. Ô này đã trống để học sinh nộp lại.`, 'ok');
+    };
 
     window.closeModal = () => {
       $('modal').style.display = 'none';
