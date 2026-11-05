@@ -14,14 +14,16 @@
       border-left: 4px solid #00d2ff; font-size: 13px; line-height: 1.5;
     }
 
-    #teacher-login-btn {
-      position: fixed; top: 15px; right: 15px; z-index: 20;
-      background: #ffc107; color: #222; border: none; padding: 8px 14px;
-      border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 13px;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.3); transition: background 0.2s;
+    #teacher-login-btn, #visits-btn {
+      position: fixed; right: 15px; z-index: 20;
+      border: none; padding: 8px 14px; border-radius: 6px; font-weight: bold;
+      cursor: pointer; font-size: 13px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); transition: background 0.2s;
     }
+    #teacher-login-btn { top: 15px; background: #ffc107; color: #222; }
     #teacher-login-btn:hover { background: #e0a800; }
     #teacher-login-btn.logged-in { background: #28a745; color: white; }
+    #visits-btn { top: 58px; background: #1a73e8; color: #fff; display: none; }
+    #visits-btn:hover { background: #1557b0; }
 
     #crosshair {
       position: fixed; top: 50%; left: 50%; width: 8px; height: 8px;
@@ -51,23 +53,38 @@
       font-size: 12px; pointer-events: none; text-align: right; z-index: 10;
     }
 
-    #modal, #login-modal {
+    #toast-wrap {
+      position: fixed; top: 70px; left: 50%; transform: translateX(-50%); z-index: 300;
+      display: flex; flex-direction: column; gap: 8px; align-items: center; pointer-events: none; width: min(92vw, 460px);
+    }
+    .toast {
+      background: rgba(20, 24, 33, 0.95); color: #fff; padding: 10px 14px; border-radius: 8px;
+      font-size: 13px; line-height: 1.45; box-shadow: 0 6px 20px rgba(0,0,0,.4); border-left: 4px solid #ffc107;
+    }
+
+    #modal, #login-modal, #welcome-modal, #visits-modal {
       display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85);
       z-index: 100; justify-content: center; align-items: center; padding: 15px;
     }
+    #visits-modal { z-index: 110; }
+    #welcome-modal { z-index: 150; background: rgba(10,12,20,0.94); }
     #login-modal { z-index: 200; }
+
     .login-box {
-      background: #fff; color: #222; width: 100%; max-width: 340px; border-radius: 12px;
+      background: #fff; color: #222; width: 100%; max-width: 360px; border-radius: 12px;
       padding: 24px; box-shadow: 0 15px 40px rgba(0,0,0,0.5); display: flex; flex-direction: column; gap: 10px;
       user-select: text; -webkit-user-select: text;
     }
     .login-box h3 { margin: 0 0 4px; color: #1a73e8; text-align: center; }
+    .login-box p.sub { margin: 0 0 6px; text-align: center; color: #555; font-size: 13px; line-height: 1.5; }
     .login-box input { width: 100%; padding: 10px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; }
     .login-box .row { display: flex; gap: 8px; }
     .login-box button { flex: 1; padding: 10px; border: 0; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 14px; }
-    #login-submit { background: #1a73e8; color: #fff; }
+    .login-box button:disabled { background: #9aa5a0 !important; cursor: not-allowed; }
+    #login-submit, #w-enter { background: #1a73e8; color: #fff; }
     #login-cancel { background: #e3e6ea; color: #333; }
-    #login-error { color: #d93025; font-size: 13px; min-height: 16px; }
+    .err-text { color: #d93025; font-size: 13px; min-height: 16px; }
+    .link-btn { background: none !important; color: #1a73e8 !important; font-weight: normal !important; font-size: 12px !important; text-decoration: underline; flex: none !important; padding: 4px !important; }
 
     .modal-content {
       background: #fff; color: #222; max-width: 850px; width: 100%;
@@ -86,18 +103,15 @@
       background: #28a745; color: white; padding: 8px; border-radius: 6px;
       font-size: 13px; font-weight: 600; cursor: pointer; text-align: center; display: block;
     }
-    .save-btn {
-      background: #1a73e8; color: white; border: none; padding: 10px; border-radius: 6px;
+    .save-btn, .remove-btn {
+      color: white; border: none; padding: 10px; border-radius: 6px;
       font-weight: bold; cursor: pointer; font-size: 14px; text-align: center;
     }
+    .save-btn { background: #1a73e8; }
     .save-btn:hover:not(:disabled) { background: #1557b0; }
-    .save-btn:disabled { background: #9aa5a0; cursor: not-allowed; }
-    .remove-btn {
-      background: #d93025; color: white; border: none; padding: 10px; border-radius: 6px;
-      font-weight: bold; cursor: pointer; font-size: 14px; text-align: center;
-    }
+    .remove-btn { background: #d93025; }
     .remove-btn:hover:not(:disabled) { background: #b3261e; }
-    .remove-btn:disabled { background: #9aa5a0; cursor: not-allowed; }
+    .save-btn:disabled, .remove-btn:disabled { background: #9aa5a0; cursor: not-allowed; }
     #upload-file-input { display: none; }
     #teacher-status { font-size: 13px; min-height: 18px; line-height: 1.4; }
     #teacher-status.ok { color: #137333; }
@@ -116,7 +130,42 @@
     }
     .external-link-btn:hover { background: #1557b0; }
 
+    .task-box { display: none; background: #fff8e1; border: 1px solid #ffd54f; border-radius: 10px; padding: 12px 14px; }
+    .task-title { font-weight: 700; color: #8a5a00; font-size: 14px; margin-bottom: 6px; }
+    .task-box ul { list-style: none; margin: 0 0 10px; padding: 0; font-size: 14px; line-height: 1.8; }
+    .task-box .hint { font-size: 12px; color: #6b5200; margin: 0 0 10px; line-height: 1.5; }
+    .task-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .task-actions button { flex: 1; min-width: 130px; padding: 10px; border: 0; border-radius: 6px; font-weight: 700; font-size: 14px; cursor: pointer; color: #fff; }
+    #btn-video { background: #d93025; }
+    #btn-quiz { background: #28a745; }
+    #video-wrap iframe { width: 100%; aspect-ratio: 16 / 9; border: 0; border-radius: 8px; margin-top: 10px; background: #000; }
+
     .close-btn { position: absolute; top: 10px; right: 15px; font-size: 28px; cursor: pointer; color: #888; font-weight: bold; z-index: 10; }
+
+    .visits-box {
+      background: #fff; color: #222; width: 100%; max-width: 940px; max-height: 90vh; overflow: auto;
+      border-radius: 12px; padding: 20px; box-shadow: 0 15px 40px rgba(0,0,0,.5);
+      user-select: text; -webkit-user-select: text;
+    }
+    .visits-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+    .visits-head h3 { margin: 0; color: #1a73e8; }
+    .visits-head button { padding: 7px 12px; border: 0; border-radius: 6px; cursor: pointer; font-weight: 600; background: #e3e6ea; }
+    #visits-summary { font-size: 13px; color: #555; margin-bottom: 10px; line-height: 1.5; }
+    table.vt { width: 100%; border-collapse: collapse; font-size: 13px; }
+    table.vt th { text-align: left; background: #f1f3f4; padding: 8px; position: sticky; top: 0; }
+    table.vt td { padding: 8px; border-bottom: 1px solid #eee; vertical-align: top; }
+    tr.v-row { cursor: pointer; }
+    tr.v-row:hover { background: #f6f9ff; }
+    tr.v-detail td { background: #fafbfc; font-size: 12px; line-height: 1.7; }
+
+    .consent { display: flex; gap: 8px; align-items: flex-start; font-size: 12px; color: #444; line-height: 1.5; text-align: left; }
+    .consent input { width: auto; padding: 0; margin-top: 3px; }
+    .visits-tools { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0; }
+    .visits-tools button { padding: 7px 12px; border: 0; border-radius: 6px; cursor: pointer; font-weight: 600; background: #e3e6ea; }
+    .code-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 13px; margin: 6px 0 10px; }
+    .code-row input { padding: 7px 9px; border: 1px solid #ccc; border-radius: 6px; font-size: 13px; width: 230px; }
+    .code-row button { padding: 7px 12px; border: 0; border-radius: 6px; cursor: pointer; font-weight: 600; background: #1a73e8; color: #fff; }
+    #btn-done { background: #f59f00; }
 
     @media (max-width: 768px) {
       .modal-content { flex-direction: column; max-height: 90vh; overflow-y: auto; }
@@ -124,6 +173,7 @@
       .modal-img { height: 200px; }
       .modal-info { width: 100%; max-height: none; }
       #hud { font-size: 11px; padding: 8px 10px; max-width: 180px; }
+      table.vt { font-size: 12px; }
     }
   </style>
 </head>
@@ -134,12 +184,15 @@
     • Di chuyển: W,A,S,D hoặc phím ảo<br>
     • Xoay góc nhìn: Kéo/Vuốt màn hình<br>
     • Click vào tranh để xem chi tiết
-    <div id="hud-teacher" style="display:none; color:#ffc107; margin-top:4px;">★ Chế độ giáo viên: click vào bất kỳ tranh nào để thay ảnh</div>
+    <div id="hud-progress" style="display:none; color:#7cfc9a; margin-top:4px;"></div>
+    <div id="hud-teacher" style="display:none; color:#ffc107; margin-top:4px;">★ Chế độ giáo viên: click vào bất kỳ tranh nào để chỉnh sửa</div>
   </div>
 
   <button id="teacher-login-btn" onclick="toggleTeacherMode()">🔒 Giáo viên Quản trị</button>
+  <button id="visits-btn" onclick="openVisits()">📊 Nhật ký học sinh</button>
 
   <div id="crosshair"></div>
+  <div id="toast-wrap"></div>
 
   <div id="mobile-controls">
     <div class="ctrl-btn" id="btn-up">&#9650;</div>
@@ -150,17 +203,63 @@
 
   <div id="mobile-hint">Vuốt để đổi góc nhìn<br>Bấm phím để đi chuyển</div>
 
-  <!-- Hộp đăng nhập giáo viên (đăng nhập thật bằng Supabase Auth) -->
+  <!-- Màn hình chào: học sinh nhập tên trước khi vào phòng -->
+  <div id="welcome-modal">
+    <div class="login-box">
+      <h3>🎨 Chào mừng đến Phòng Tranh 3D</h3>
+      <p class="sub">Nhập tên để vào phòng. Giáo viên sẽ biết em đã vào lúc nào và đã làm những bài tập nào.</p>
+      <input type="text" id="w-name" maxlength="80" placeholder="Họ và tên (hoặc mã số học sinh)" autocomplete="name">
+      <input type="text" id="w-class" maxlength="40" placeholder="Lớp (ví dụ: 6A1)">
+      <input type="text" id="w-code" maxlength="40" placeholder="Mã vào phòng (do giáo viên cung cấp)" style="display:none" autocomplete="off">
+      <label class="consent"><input type="checkbox" id="w-consent"> <span>Em đồng ý để giáo viên xem tên, lớp và thời gian em vào phòng tranh. Thông tin chỉ dùng cho việc học.</span></label>
+      <div class="err-text" id="w-error" role="alert"></div>
+      <div class="row"><button id="w-enter">🚪 Vào phòng tranh</button></div>
+      <div class="row"><button id="w-teacher" class="link-btn" type="button">Tôi là giáo viên</button></div>
+    </div>
+  </div>
+
+  <!-- Hộp đăng nhập giáo viên (Supabase Auth) -->
   <div id="login-modal">
     <div class="login-box">
       <h3>🔐 Đăng nhập giáo viên</h3>
       <input type="email" id="login-email" placeholder="Email giáo viên" autocomplete="username">
       <input type="password" id="login-pass" placeholder="Mật khẩu" autocomplete="current-password">
-      <div id="login-error" role="alert"></div>
+      <div class="err-text" id="login-error" role="alert"></div>
       <div class="row">
         <button id="login-submit">Đăng nhập</button>
         <button id="login-cancel">Hủy</button>
       </div>
+    </div>
+  </div>
+
+  <!-- Nhật ký học sinh (chỉ giáo viên) -->
+  <div id="visits-modal">
+    <div class="visits-box">
+      <div class="visits-head">
+        <h3>📊 Nhật ký học sinh vào phòng tranh</h3>
+        <div>
+          <button id="visits-refresh">🔄 Làm mới</button>
+          <button id="visits-close">Đóng</button>
+        </div>
+      </div>
+      <div class="visits-tools">
+        <button id="visits-notify">🔔 Bật thông báo trình duyệt</button>
+        <button id="visits-csv">⬇ Xuất file Excel (CSV)</button>
+        <button id="visits-purge">🧹 Xóa nhật ký cũ</button>
+      </div>
+      <div class="code-row">
+        <b>Mã vào phòng:</b>
+        <input type="text" id="room-code" maxlength="40" placeholder="Để trống = không cần mã" autocomplete="off">
+        <button id="room-code-save">Lưu mã</button>
+        <span id="room-code-msg"></span>
+      </div>
+      <div id="visits-summary"></div>
+      <table class="vt">
+        <thead>
+          <tr><th>Học sinh</th><th>Lớp</th><th>Vào lúc</th><th>Tranh đã xem</th><th>Video</th><th>Bài tập đã mở</th><th>Tự báo đã xong</th><th>Hoạt động cuối</th></tr>
+        </thead>
+        <tbody id="visits-body"></tbody>
+      </table>
     </div>
   </div>
 
@@ -193,17 +292,35 @@
           <label for="edit-desc" style="font-size:12px; font-weight:bold; color:#1a73e8;">Mô tả chi tiết:</label>
           <textarea id="edit-desc" rows="3" maxlength="500"></textarea>
 
+          <label for="edit-video" style="font-size:12px; font-weight:bold; color:#d93025;">▶ Link video YouTube (bỏ trống nếu không có):</label>
+          <input type="text" id="edit-video" maxlength="300" placeholder="https://www.youtube.com/watch?v=...">
+
+          <label for="edit-quiz" style="font-size:12px; font-weight:bold; color:#28a745;">📝 Link bài tập / Quiz (bỏ trống nếu không có):</label>
+          <input type="text" id="edit-quiz" maxlength="300" placeholder="https://forms.gle/... hoặc link Quizizz, Wayground...">
+
           <button class="save-btn" id="save-btn" onclick="saveTeacherChanges()">💾 Lưu thay đổi lên hệ thống</button>
           <button class="remove-btn" id="remove-btn" onclick="removeArtwork()">🗑️ Gỡ bỏ tranh này (không phù hợp)</button>
           <div id="teacher-status" role="status" aria-live="polite"></div>
         </div>
 
         <div class="student-view-area">
+          <div id="task-box" class="task-box">
+            <div class="task-title">📚 Nhiệm vụ của tranh này</div>
+            <ul id="task-list"></ul>
+            <p class="hint">Sau khi xem tranh, hãy xem video (nếu có) và làm bài tập. Làm xong, quay lại phòng tranh để xem tranh tiếp theo.</p>
+            <div class="task-actions">
+              <button id="btn-video" onclick="playVideo()">▶ Xem video</button>
+              <button id="btn-quiz" onclick="openQuiz()">📝 Làm bài tập</button>
+              <button id="btn-done" onclick="markDone()" style="display:none">✅ Em đã làm xong bài tập</button>
+            </div>
+            <div id="video-wrap"></div>
+          </div>
+
           <div id="audio-container" style="display:none;">
             <label style="font-size: 12px; color: #666; font-weight: bold; display: block; margin-bottom: 4px;">🎧 Thuyết minh:</label>
             <audio id="m-audio" controls></audio>
           </div>
-          <a id="m-link" class="external-link-btn" href="#" target="_blank">🔗 Mở liên kết học tập</a>
+          <a id="m-link" class="external-link-btn" href="#" target="_blank" rel="noopener">🔗 Mở liên kết học tập</a>
         </div>
       </div>
     </div>
@@ -232,11 +349,182 @@
     });
 
     const $ = (id) => document.getElementById(id);
-    const inUI = (t) => !!(t && t.closest && t.closest('#mobile-controls, #modal, #teacher-login-btn, #login-modal'));
+    const TZ = 'Asia/Ho_Chi_Minh';
+    const inUI = (t) => !!(t && t.closest && t.closest('#mobile-controls, #modal, #teacher-login-btn, #visits-btn, #login-modal, #welcome-modal, #visits-modal'));
     const isTyping = (e) => ['INPUT', 'TEXTAREA'].includes(e.target.tagName);
 
-    // ---------- Đăng nhập giáo viên (Supabase Auth) ----------
+    // ---------- Tiện ích ----------
+    const store = {
+      get(k) { try { return JSON.parse(sessionStorage.getItem(k)); } catch (e) { return null; } },
+      set(k, v) { try { sessionStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* bỏ qua */ } }
+    };
+    const VISIT_KEY = 'gallery_visit_v1';
+    const PROGRESS_KEY = 'gallery_progress_v1';
+
+    function newId() {
+      if (crypto.randomUUID) return crypto.randomUUID();
+      const b = new Uint8Array(16); crypto.getRandomValues(b);
+      b[6] = (b[6] & 0x0f) | 0x40; b[8] = (b[8] & 0x3f) | 0x80;
+      const h = [...b].map((x) => x.toString(16).padStart(2, '0')).join('');
+      return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
+    }
+
+    // Chỉ chấp nhận link http/https (chặn javascript:, data:...)
+    function safeUrl(u) {
+      try {
+        const x = new URL(String(u || '').trim());
+        return (x.protocol === 'https:' || x.protocol === 'http:') ? x.href : '';
+      } catch (e) { return ''; }
+    }
+    function youtubeId(u) {
+      const s = safeUrl(u); if (!s) return '';
+      const x = new URL(s);
+      const host = x.hostname.replace(/^(www|m)\./, '');
+      let id = '';
+      if (host === 'youtu.be') id = x.pathname.slice(1).split('/')[0];
+      else if (host === 'youtube.com' || host === 'youtube-nocookie.com') {
+        if (x.pathname === '/watch') id = x.searchParams.get('v') || '';
+        else { const m = x.pathname.match(/^\/(embed|shorts|live|v)\/([^/?]+)/); if (m) id = m[2]; }
+      }
+      return /^[\w-]{11}$/.test(id) ? id : '';
+    }
+
+    function fmtDateTime(iso) {
+      return new Date(iso).toLocaleString('vi-VN', { timeZone: TZ, hour12: false });
+    }
+    function fmtTime(iso) {
+      return new Date(iso).toLocaleTimeString('vi-VN', { timeZone: TZ, hour12: false });
+    }
+
+    function showToast(msg, ms = 6000) {
+      const el = document.createElement('div');
+      el.className = 'toast';
+      el.textContent = msg;
+      $('toast-wrap').appendChild(el);
+      setTimeout(() => el.remove(), ms);
+    }
+
+    // ---------- Học sinh vào phòng + nhật ký ----------
+    let visitId = null;
+    let progress = {};        // { [idTranh]: { view, video, quiz } }
     let isTeacherLoggedIn = false;
+
+    function updateProgressHud() {
+      const el = $('hud-progress');
+      if (isTeacherLoggedIn || !visitId) { el.style.display = 'none'; return; }
+      const withQuiz = artworkMeshes.filter((m) => safeUrl(m.userData.quizUrl));
+      if (!withQuiz.length) { el.style.display = 'none'; return; }
+      const done = withQuiz.filter((m) => (progress[m.userData.id] || {}).done).length;
+      el.style.display = 'block';
+      el.textContent = `✅ Bài tập đã hoàn thành: ${done}/${withQuiz.length}`;
+    }
+
+    // Ghi một hành động (xem tranh / xem video / mở bài tập), mỗi loại một lần cho mỗi tranh
+    function trackEvent(artId, event) {
+      if (isTeacherLoggedIn || !visitId) return;
+      const p = progress[artId] || (progress[artId] = {});
+      if (p[event]) return;
+      p[event] = true;
+      store.set(PROGRESS_KEY, progress);
+      updateProgressHud();
+      supabase.from('visit_events').insert([{ visit_id: visitId, artwork_id: artId, event }])
+        .then(({ error }) => {
+          if (error) { console.warn('Không ghi được nhật ký:', error.message); p[event] = false; store.set(PROGRESS_KEY, progress); }
+        });
+    }
+
+    // Chuẩn hóa tên và lớp để bớt sai chính tả, bớt trùng lặp: "nguyễn  văn a" -> "Nguyễn Văn A", "6a 1" -> "6A1"
+    function cleanName(s) {
+      return String(s || '').replace(/\s+/g, ' ').trim().toLowerCase().replace(/(^|\s)\S/g, (c) => c.toUpperCase());
+    }
+    function cleanClass(s) { return String(s || '').replace(/\s+/g, '').toUpperCase(); }
+
+    // Nếu giáo viên đã đặt "mã vào phòng" thì hiện ô nhập mã
+    let codeRequired = false;
+    async function checkCodeRequired() {
+      try {
+        const { data, error } = await supabase.rpc('room_code_required');
+        codeRequired = !error && data === true;
+      } catch (e) { codeRequired = false; }
+      $('w-code').style.display = codeRequired ? 'block' : 'none';
+    }
+
+    async function enterRoom() {
+      const name = cleanName($('w-name').value);
+      const cls = cleanClass($('w-class').value);
+      const code = $('w-code').value.trim();
+      const fail = (m) => { $('w-error').textContent = m; };
+      if (!name) return fail('Vui lòng nhập họ và tên.');
+      if (codeRequired && !code) return fail('Vui lòng nhập mã vào phòng (hỏi giáo viên).');
+      if (!$('w-consent').checked) return fail('Em cần tích đồng ý ở phía trên để vào phòng tranh.');
+      $('w-error').textContent = '';
+      $('w-enter').disabled = true;
+
+      const id = newId();
+      const row = { id, student_name: name, class_name: cls || null };
+      if (codeRequired) row.access_code = code;
+      const { error } = await supabase.from('visits').insert([row]);
+      if (error && codeRequired && /row-level security/i.test(error.message)) {
+        $('w-enter').disabled = false;
+        return fail('Mã vào phòng chưa đúng. Hãy hỏi lại giáo viên.');
+      }
+      if (error) console.warn('Không ghi được lượt vào phòng:', error.message);
+
+      visitId = id;
+      progress = {};
+      store.set(VISIT_KEY, { id: visitId, name, cls });
+      store.set(PROGRESS_KEY, progress);
+
+      $('w-enter').disabled = false;
+      $('welcome-modal').style.display = 'none';
+      updateProgressHud();
+      showToast(`Chào ${name}! Hãy xem tranh, xem video và làm bài tập của từng tranh nhé.`, 8000);
+    }
+    $('w-enter').addEventListener('click', enterRoom);
+    $('w-name').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('w-class').focus(); });
+    $('w-class').addEventListener('keydown', (e) => { if (e.key === 'Enter') enterRoom(); });
+    $('w-teacher').addEventListener('click', () => openLogin());
+
+    // ---------- Đăng nhập giáo viên (Supabase Auth) ----------
+    // Báo có học sinh vào: tiêu đề tab đếm số lượt mới, tiếng bíp, thông báo của trình duyệt
+    let unread = 0;
+    const baseTitle = document.title;
+    function resetUnread() { unread = 0; document.title = baseTitle; }
+    window.addEventListener('focus', resetUnread);
+    function beep() {
+      try {
+        const ctx = beep.ctx || (beep.ctx = new (window.AudioContext || window.webkitAudioContext)());
+        const o = ctx.createOscillator(), g = ctx.createGain();
+        o.connect(g); g.connect(ctx.destination);
+        o.frequency.value = 880; g.gain.value = 0.08;
+        o.start(); o.stop(ctx.currentTime + 0.18);
+      } catch (e) { /* trình duyệt chặn âm thanh thì bỏ qua */ }
+    }
+    function notifyNewVisit(msg) {
+      unread++;
+      document.title = `(${unread}) ${baseTitle}`;
+      beep();
+      if ('Notification' in window && Notification.permission === 'granted' && document.hidden) {
+        try { new Notification('Học sinh vừa vào phòng tranh', { body: msg }); } catch (e) { /* bỏ qua */ }
+      }
+    }
+
+    let feed = null;
+    function startFeed() {
+      if (feed) return;
+      feed = supabase.channel('visits-feed')
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'visits' }, (payload) => {
+          const r = payload.new || {};
+          const msg = `${r.student_name || 'Một học sinh'}${r.class_name ? ' (' + r.class_name + ')' : ''} vừa vào phòng tranh lúc ${fmtTime(r.entered_at || new Date())}`;
+          showToast('🔔 ' + msg, 10000);
+          notifyNewVisit(msg);
+          if ($('visits-modal').style.display === 'flex') loadVisits();
+        })
+        .subscribe();
+    }
+    function stopFeed() {
+      if (feed) { supabase.removeChannel(feed); feed = null; }
+    }
 
     function setTeacherUI(on) {
       isTeacherLoggedIn = on;
@@ -244,6 +532,16 @@
       btn.innerText = on ? '🔓 Đang ở chế độ Giáo viên' : '🔒 Giáo viên Quản trị';
       btn.classList.toggle('logged-in', on);
       $('hud-teacher').style.display = on ? 'block' : 'none';
+      $('visits-btn').style.display = on ? 'block' : 'none';
+      if (on) {
+        $('welcome-modal').style.display = 'none';
+        startFeed();
+      } else {
+        stopFeed();
+        $('visits-modal').style.display = 'none';
+        if (!visitId) { checkCodeRequired(); $('welcome-modal').style.display = 'flex'; }
+      }
+      updateProgressHud();
     }
 
     function openLogin() {
@@ -274,14 +572,135 @@
     window.toggleTeacherMode = async () => {
       if (!isTeacherLoggedIn) { openLogin(); return; }
       await supabase.auth.signOut();
-      setTeacherUI(false);
       closeModal();
+      setTeacherUI(false);
     };
 
     $('login-submit').addEventListener('click', doLogin);
     $('login-cancel').addEventListener('click', closeLogin);
     $('login-pass').addEventListener('keydown', (e) => { if (e.key === 'Enter') doLogin(); });
     $('login-email').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('login-pass').focus(); });
+
+    // ---------- Bảng nhật ký học sinh (giáo viên) ----------
+    const EVENT_LABEL = { view: 'Xem tranh', video: 'Xem video', quiz: 'Mở bài tập', done: 'Tự báo đã làm xong' };
+    let lastRows = [];
+    const cell = (text) => { const c = document.createElement('td'); c.textContent = String(text ?? ''); return c; };
+
+    async function loadVisits() {
+      const body = $('visits-body');
+      body.innerHTML = '';
+      $('visits-summary').textContent = 'Đang tải...';
+      const { data, error } = await supabase.from('visit_summary')
+        .select('*').order('entered_at', { ascending: false }).limit(300);
+      if (error) {
+        $('visits-summary').textContent = 'Lỗi tải nhật ký: ' + error.message + ' (bạn đã chạy file supabase_quiz_tracking.sql chưa?)';
+        return;
+      }
+      lastRows = data;
+      const today = new Date().toLocaleDateString('vi-VN', { timeZone: TZ });
+      const todayCount = data.filter((r) => new Date(r.entered_at).toLocaleDateString('vi-VN', { timeZone: TZ }) === today).length;
+      $('visits-summary').textContent = `Hôm nay: ${todayCount} lượt vào · Đang hiển thị ${data.length} lượt gần nhất. Bấm vào một dòng để xem chi tiết từng tranh.`;
+
+      data.forEach((r) => {
+        const tr = document.createElement('tr');
+        tr.className = 'v-row';
+        tr.append(cell(r.student_name), cell(r.class_name || ''), cell(fmtDateTime(r.entered_at)),
+          cell(r.viewed), cell(r.videos), cell(r.quizzes), cell(r.done_count),
+          cell(r.last_activity ? fmtTime(r.last_activity) : '—'));
+        tr.addEventListener('click', () => toggleDetail(tr, r.id));
+        body.appendChild(tr);
+      });
+    }
+
+    async function toggleDetail(row, visit) {
+      const next = row.nextElementSibling;
+      if (next && next.classList.contains('v-detail')) { next.remove(); return; }
+      const det = document.createElement('tr');
+      det.className = 'v-detail';
+      const td = document.createElement('td');
+      td.colSpan = 8;
+      td.textContent = 'Đang tải...';
+      det.appendChild(td);
+      row.after(det);
+
+      const { data, error } = await supabase.from('visit_events')
+        .select('artwork_id, event, created_at').eq('visit_id', visit).order('created_at');
+      td.textContent = '';
+      if (error) { td.textContent = 'Lỗi: ' + error.message; return; }
+      if (!data.length) { td.textContent = 'Học sinh này chưa xem tranh nào.'; return; }
+      data.forEach((ev) => {
+        const line = document.createElement('div');
+        line.textContent = `${fmtTime(ev.created_at)} · Tranh #${ev.artwork_id} · ${EVENT_LABEL[ev.event] || ev.event}`;
+        td.appendChild(line);
+      });
+    }
+
+    window.openVisits = async () => {
+      $('visits-modal').style.display = 'flex';
+      resetUnread();
+      loadRoomCode();
+      await loadVisits();
+    };
+
+    // Mã vào phòng: giáo viên đặt, học sinh phải nhập mới vào được
+    async function loadRoomCode() {
+      $('room-code-msg').textContent = '';
+      const { data, error } = await supabase.from('room_settings').select('value').eq('key', 'room_code').maybeSingle();
+      $('room-code').value = (!error && data) ? data.value : '';
+      if (error) $('room-code-msg').textContent = 'Chưa đọc được (đã chạy supabase_improvements.sql chưa?)';
+    }
+    $('room-code-save').addEventListener('click', async () => {
+      const v = $('room-code').value.trim();
+      const { error } = await supabase.from('room_settings').upsert([{ key: 'room_code', value: v }]);
+      $('room-code-msg').textContent = error ? 'Lỗi: ' + error.message
+        : (v ? '✅ Đã lưu. Học sinh cần nhập mã này để vào phòng.' : '✅ Đã tắt mã: học sinh vào phòng không cần mã.');
+    });
+
+    // Xuất CSV (mở được bằng Excel). Chống "CSV injection" vì tên do học sinh tự gõ.
+    function csvCell(v) {
+      let s = String(v ?? '');
+      if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
+      return '"' + s.replace(/"/g, '""') + '"';
+    }
+    $('visits-csv').addEventListener('click', () => {
+      if (!lastRows.length) { showToast('Chưa có dữ liệu để xuất.'); return; }
+      const head = ['Học sinh', 'Lớp', 'Vào lúc', 'Tranh đã xem', 'Video', 'Bài tập đã mở', 'Tự báo đã xong', 'Hoạt động cuối'];
+      const lines = [head.map(csvCell).join(',')];
+      lastRows.forEach((r) => lines.push([
+        r.student_name, r.class_name || '', fmtDateTime(r.entered_at),
+        r.viewed, r.videos, r.quizzes, r.done_count, r.last_activity ? fmtDateTime(r.last_activity) : ''
+      ].map(csvCell).join(',')));
+      const blob = new Blob(['\uFEFF' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `nhat-ky-phong-tranh-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    });
+
+    // Xóa nhật ký cũ để không giữ thông tin học sinh lâu hơn cần thiết
+    $('visits-purge').addEventListener('click', async () => {
+      const input = prompt('Xóa nhật ký cũ hơn bao nhiêu ngày? (ví dụ: 30)', '30');
+      if (input === null) return;
+      const days = parseInt(input, 10);
+      if (!Number.isFinite(days) || days < 1) { showToast('Số ngày không hợp lệ.'); return; }
+      if (!confirm(`Xóa vĩnh viễn mọi lượt vào phòng cũ hơn ${days} ngày?`)) return;
+      const cutoff = new Date(Date.now() - days * 86400000).toISOString();
+      const { data, error } = await supabase.from('visits').delete().lt('entered_at', cutoff).select('id');
+      if (error) { showToast('Lỗi khi xóa: ' + error.message); return; }
+      showToast(`Đã xóa ${data.length} lượt vào phòng cũ.`);
+      loadVisits();
+    });
+
+    $('visits-notify').addEventListener('click', async () => {
+      if (!('Notification' in window)) { showToast('Trình duyệt này không hỗ trợ thông báo.'); return; }
+      const r = await Notification.requestPermission();
+      showToast(r === 'granted'
+        ? '🔔 Đã bật. Giữ tab này mở (có thể ở nền) để nhận thông báo khi có học sinh vào.'
+        : 'Chưa bật được thông báo (trình duyệt đang chặn).');
+    });
+    $('visits-refresh').addEventListener('click', loadVisits);
+    $('visits-close').addEventListener('click', () => { $('visits-modal').style.display = 'none'; });
 
     // ---------- Cảnh 3D ----------
     const scene = new THREE.Scene();
@@ -341,6 +760,7 @@
         console.warn('Lỗi kết nối Supabase:', e);
       }
       buildGallery();
+      updateProgressHud();
     }
 
     function createFallbackTexture(id, title) {
@@ -397,12 +817,16 @@
         author: currentAuthor,
         description: currentDesc,
         image: currentImage,
+        quizUrl: dbItem.quiz_url || dataItem.quizUrl || '',
+        videoUrl: dbItem.video_url || dataItem.videoUrl || '',
         fallbackUrl: fallback.dataUrl,
         defaults: {
           title: dataItem.title,
           author: dataItem.author,
           description: dataItem.description,
-          image: dataItem.image
+          image: dataItem.image,
+          quizUrl: dataItem.quizUrl || '',
+          videoUrl: dataItem.videoUrl || ''
         },
         audio: dataItem.audio || '',
         externalLink: dataItem.externalLink || ''
@@ -497,6 +921,65 @@
       el.className = kind || '';
     }
 
+    function resetVideo() { $('video-wrap').innerHTML = ''; }
+
+    // Hiện khung "Nhiệm vụ" (video + bài tập) của tranh
+    function renderTasks(art) {
+      const quiz = safeUrl(art.quizUrl), video = safeUrl(art.videoUrl);
+      const box = $('task-box');
+      if (!quiz && !video) { box.style.display = 'none'; return; }
+      box.style.display = 'block';
+      const p = progress[art.id] || {};
+      const items = [`${p.view ? '✅' : '⬜'} Xem tranh`];
+      if (video) items.push(`${p.video ? '✅' : '⬜'} Xem video`);
+      if (quiz) items.push(`${p.done ? '✅' : (p.quiz ? '🟡' : '⬜')} Làm bài tập${p.quiz && !p.done ? ' (đã mở: làm xong rồi bấm nút báo bên dưới)' : ''}`);
+      $('task-list').innerHTML = items.map((t) => `<li>${t}</li>`).join('');   // chuỗi cố định, an toàn
+      $('btn-video').style.display = video ? 'block' : 'none';
+      $('btn-quiz').style.display = quiz ? 'block' : 'none';
+      $('btn-done').style.display = (quiz && p.quiz && !p.done && !isTeacherLoggedIn) ? 'block' : 'none';
+    }
+
+    window.playVideo = () => {
+      const art = currentSelectedArtwork;
+      if (!art) return;
+      const url = safeUrl(art.videoUrl);
+      if (!url) return;
+      const id = youtubeId(url);
+      if (id) {
+        resetVideo();
+        const f = document.createElement('iframe');
+        f.src = `https://www.youtube-nocookie.com/embed/${id}?rel=0`;
+        f.title = 'Video bài học';
+        f.allow = 'accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture';
+        f.allowFullscreen = true;
+        $('video-wrap').appendChild(f);
+      } else {
+        window.open(url, '_blank', 'noopener');
+      }
+      trackEvent(art.id, 'video');
+      renderTasks(art);
+    };
+
+    window.openQuiz = () => {
+      const art = currentSelectedArtwork;
+      if (!art) return;
+      const url = safeUrl(art.quizUrl);
+      if (!url) return;
+      window.open(url, '_blank', 'noopener');
+      trackEvent(art.id, 'quiz');
+      renderTasks(art);
+    };
+
+    // Học sinh tự báo đã làm xong (hệ thống không đọc được kết quả từ trang bài tập bên ngoài)
+    window.markDone = () => {
+      const art = currentSelectedArtwork;
+      if (!art || isTeacherLoggedIn) return;
+      if (!(progress[art.id] || {}).quiz) { showToast('Hãy mở bài tập và làm trước, rồi mới bấm báo đã xong nhé.'); return; }
+      trackEvent(art.id, 'done');
+      renderTasks(art);
+      showToast(`✅ Đã ghi nhận em hoàn thành bài tập của tranh #${art.id}.`);
+    };
+
     function handleSelect(clientX, clientY) {
       mouse.x = (clientX / window.innerWidth) * 2 - 1;
       mouse.y = -(clientY / window.innerHeight) * 2 + 1;
@@ -515,12 +998,18 @@
         $('edit-title').value = info.title || '';
         $('edit-author').value = info.author || '';
         $('edit-desc').value = info.description || '';
+        $('edit-video').value = info.videoUrl || '';
+        $('edit-quiz').value = info.quizUrl || '';
         setStatus('');
+        resetVideo();
 
         document.querySelectorAll('.teacher-tools').forEach((box) => {
           box.style.display = isTeacherLoggedIn ? 'flex' : 'none';
         });
         $('student-view-info').style.display = isTeacherLoggedIn ? 'none' : 'block';
+
+        trackEvent(info.id, 'view');   // học sinh: ghi "đã xem tranh"
+        renderTasks(info);
 
         $('modal').style.display = 'flex';
       }
@@ -528,39 +1017,53 @@
 
     // ---------- Giáo viên lưu thay đổi ----------
     window.saveTeacherChanges = async () => {
-      if (!currentSelectedArtwork) return;
+      const art = currentSelectedArtwork;
+      if (!art) return;
       if (!isTeacherLoggedIn) { setStatus('Bạn cần đăng nhập giáo viên để lưu.', 'err'); return; }
 
       const newTitle = $('edit-title').value.trim();
       const newAuthor = $('edit-author').value.trim();
       const newDesc = $('edit-desc').value.trim();
+      const rawVideo = $('edit-video').value.trim();
+      const rawQuiz = $('edit-quiz').value.trim();
       if (!newTitle) { setStatus('Tiêu đề không được để trống.', 'err'); return; }
+      if (rawVideo && !safeUrl(rawVideo)) { setStatus('Link video không hợp lệ (cần bắt đầu bằng https://).', 'err'); return; }
+      if (rawQuiz && !safeUrl(rawQuiz)) { setStatus('Link bài tập không hợp lệ (cần bắt đầu bằng https://).', 'err'); return; }
+      const newVideo = rawVideo ? safeUrl(rawVideo) : '';
+      const newQuiz = rawQuiz ? safeUrl(rawQuiz) : '';
 
       $('save-btn').disabled = true;
       setStatus('Đang lưu...', '');
 
       const { error } = await supabase.from('artworks').upsert([{
-        id: currentSelectedArtwork.id,
+        id: art.id,
         title: newTitle,
         author: newAuthor,
         description: newDesc,
-        image_url: currentSelectedArtwork.image || null,
+        image_url: art.image || null,
+        video_url: newVideo || null,
+        quiz_url: newQuiz || null,
         status: 'approved'
       }]);
 
       $('save-btn').disabled = false;
       if (error) {
-        setStatus('Lỗi khi lưu: ' + error.message, 'err');
+        const hint = /video_url|quiz_url/.test(error.message)
+          ? ' (bảng chưa có cột link: hãy chạy file supabase_quiz_tracking.sql)' : '';
+        setStatus('Lỗi khi lưu: ' + error.message + hint, 'err');
         return;
       }
       // Cập nhật ngay trong phòng tranh, không cần tải lại trang
-      currentSelectedArtwork.title = newTitle;
-      currentSelectedArtwork.author = newAuthor;
-      currentSelectedArtwork.description = newDesc;
+      art.title = newTitle;
+      art.author = newAuthor;
+      art.description = newDesc;
+      art.videoUrl = newVideo;
+      art.quizUrl = newQuiz;
       $('m-title').innerText = newTitle;
       $('m-author').innerText = 'Tác giả: ' + newAuthor;
       $('m-desc').innerText = newDesc;
-      setStatus(`✅ Đã lưu Tác phẩm #${currentSelectedArtwork.id}.`, 'ok');
+      renderTasks(art);
+      setStatus(`✅ Đã lưu Tác phẩm #${art.id}.`, 'ok');
     };
 
     // ---------- Giáo viên thay ảnh ----------
@@ -626,6 +1129,8 @@
         author: art.author || null,
         description: art.description || null,
         image_url: art.image,
+        video_url: art.videoUrl || null,
+        quiz_url: art.quizUrl || null,
         status: 'approved'
       }]);
       if (dbError) {
@@ -635,14 +1140,7 @@
       }
     };
 
-    window.addEventListener('click', (e) => {
-      if (inUI(e.target)) return;
-      if (dragMoved) { dragMoved = false; return; } // vừa kéo xoay, không tính là click
-      handleSelect(e.clientX, e.clientY);
-    });
-
-    // Gỡ tranh không phù hợp: xóa bài nộp khỏi hệ thống, ô trở về tranh mặc định
-    // và học sinh có thể nộp bài mới vào ô này.
+    // ---------- Giáo viên gỡ tranh không phù hợp ----------
     window.removeArtwork = async () => {
       const art = currentSelectedArtwork;
       if (!art) return;
@@ -689,6 +1187,7 @@
       // Trả tranh về nội dung mặc định trong data.js
       const d = art.defaults || {};
       art.title = d.title; art.author = d.author; art.description = d.description; art.image = d.image;
+      art.quizUrl = d.quizUrl || ''; art.videoUrl = d.videoUrl || '';
       delete dynamicArtworksData[art.id];
 
       const fb = createFallbackTexture(art.id, d.title);
@@ -706,13 +1205,29 @@
       $('edit-title').value = art.title || '';
       $('edit-author').value = art.author || '';
       $('edit-desc').value = art.description || '';
+      $('edit-video').value = art.videoUrl;
+      $('edit-quiz').value = art.quizUrl;
       setModalImage(art);
+      renderTasks(art);
+      updateProgressHud();
       setStatus(`✅ Đã gỡ Tác phẩm #${art.id}. Ô này đã trống để học sinh nộp lại.`, 'ok');
     };
 
+    window.addEventListener('click', (e) => {
+      if (inUI(e.target)) return;
+      if (dragMoved) { dragMoved = false; return; } // vừa kéo xoay, không tính là click
+      handleSelect(e.clientX, e.clientY);
+    });
+
     window.closeModal = () => {
+      const art = currentSelectedArtwork;
       $('modal').style.display = 'none';
+      resetVideo();
       currentSelectedArtwork = null;
+      // Nhắc học sinh làm bài tập nếu tranh có bài mà chưa mở
+      if (art && !isTeacherLoggedIn && visitId && safeUrl(art.quizUrl) && !(progress[art.id] || {}).done) {
+        showToast(`📝 Tranh #${art.id} có bài tập em chưa hoàn thành. Hãy bấm lại vào tranh để làm bài và báo đã xong nhé!`, 8000);
+      }
     };
 
     // ---------- Vòng lặp ----------
@@ -739,6 +1254,18 @@
       camera.updateProjectionMatrix();
       renderer.setSize(window.innerWidth, window.innerHeight);
     });
+
+    // ---------- Khởi động: học sinh phải nhập tên mới vào phòng ----------
+    (function boot() {
+      const saved = store.get(VISIT_KEY);
+      if (saved && saved.id) {
+        visitId = saved.id;                       // cùng một lượt vào (đang tải lại trang)
+        progress = store.get(PROGRESS_KEY) || {};
+      } else {
+        checkCodeRequired();
+        $('welcome-modal').style.display = 'flex';
+      }
+    })();
   </script>
 </body>
 </html>
