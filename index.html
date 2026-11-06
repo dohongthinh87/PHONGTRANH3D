@@ -14,7 +14,7 @@
       border-left: 4px solid #00d2ff; font-size: 13px; line-height: 1.5;
     }
 
-    #teacher-login-btn, #visits-btn {
+    #teacher-login-btn, #visits-btn, #roster-btn {
       position: fixed; right: 15px; z-index: 20;
       border: none; padding: 8px 14px; border-radius: 6px; font-weight: bold;
       cursor: pointer; font-size: 13px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); transition: background 0.2s;
@@ -24,6 +24,21 @@
     #teacher-login-btn.logged-in { background: #28a745; color: white; }
     #visits-btn { top: 58px; background: #1a73e8; color: #fff; display: none; }
     #visits-btn:hover { background: #1557b0; }
+    #roster-btn { top: 101px; background: #7b1fa2; color: #fff; display: none; }
+    #roster-btn:hover { background: #5e1780; }
+    #roster-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 110; justify-content: center; align-items: center; padding: 15px; }
+    .roster-add { background: #f6f9ff; border: 1px solid #d6e4ff; border-radius: 8px; padding: 12px; margin: 8px 0 12px; font-size: 13px; line-height: 1.5; }
+    .roster-add textarea { width: 100%; box-sizing: border-box; padding: 8px; border: 1px solid #ccc; border-radius: 6px; font: inherit; font-size: 13px; margin: 6px 0; user-select: text; -webkit-user-select: text; }
+    .roster-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .roster-actions button, .row-btn { padding: 7px 12px; border: 0; border-radius: 6px; cursor: pointer; font-weight: 600; background: #e3e6ea; }
+    .roster-actions button:disabled { background: #9aa5a0; cursor: not-allowed; }
+    #roster-create { background: #28a745; color: #fff; }
+    .roster-actions input[type=number] { width: 64px; padding: 6px; border: 1px solid #ccc; border-radius: 6px; }
+    #roster-msg { margin-top: 8px; font-size: 13px; min-height: 16px; line-height: 1.5; }
+    #roster-msg.ok { color: #137333; } #roster-msg.err { color: #d93025; }
+    .code-cell { font-family: Consolas, 'Courier New', monospace; font-weight: 700; letter-spacing: 2px; }
+    .row-btn { padding: 4px 8px; font-size: 12px; margin-right: 4px; }
+    tr.inactive td { color: #999; }
 
     #crosshair {
       position: fixed; top: 50%; left: 50%; width: 8px; height: 8px;
@@ -158,6 +173,7 @@
     tr.v-row:hover { background: #f6f9ff; }
     tr.v-detail td { background: #fafbfc; font-size: 12px; line-height: 1.7; }
 
+    #w-code::placeholder { text-transform: none; letter-spacing: normal; font-weight: 400; }
     .consent { display: flex; gap: 8px; align-items: flex-start; font-size: 12px; color: #444; line-height: 1.5; text-align: left; }
     .consent input { width: auto; padding: 0; margin-top: 3px; }
     .visits-tools { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0; }
@@ -190,6 +206,7 @@
 
   <button id="teacher-login-btn" onclick="toggleTeacherMode()">🔒 Giáo viên Quản trị</button>
   <button id="visits-btn" onclick="openVisits()">📊 Nhật ký học sinh</button>
+  <button id="roster-btn" onclick="openRoster()">👥 Học sinh và mã số</button>
 
   <div id="crosshair"></div>
   <div id="toast-wrap"></div>
@@ -203,14 +220,12 @@
 
   <div id="mobile-hint">Vuốt để đổi góc nhìn<br>Bấm phím để đi chuyển</div>
 
-  <!-- Màn hình chào: học sinh nhập tên trước khi vào phòng -->
+  <!-- Màn hình chào: học sinh nhập MÃ SỐ do giáo viên cấp để vào phòng -->
   <div id="welcome-modal">
     <div class="login-box">
       <h3>🎨 Chào mừng đến Phòng Tranh 3D</h3>
-      <p class="sub">Nhập tên để vào phòng. Giáo viên sẽ biết em đã vào lúc nào và đã làm những bài tập nào.</p>
-      <input type="text" id="w-name" maxlength="80" placeholder="Họ và tên (hoặc mã số học sinh)" autocomplete="name">
-      <input type="text" id="w-class" maxlength="40" placeholder="Lớp (ví dụ: 6A1)">
-      <input type="text" id="w-code" maxlength="40" placeholder="Mã vào phòng (do giáo viên cung cấp)" style="display:none" autocomplete="off">
+      <p class="sub">Nhập mã số học sinh do giáo viên cung cấp để vào phòng. Giáo viên sẽ biết em đã vào lúc nào và đã làm những bài tập nào.</p>
+      <input type="text" id="w-code" maxlength="20" placeholder="Mã số học sinh (ví dụ: K7M2PX)" autocomplete="off" autocapitalize="characters" spellcheck="false" style="text-transform:uppercase; letter-spacing:3px; text-align:center; font-weight:700;">
       <label class="consent"><input type="checkbox" id="w-consent"> <span>Em đồng ý để giáo viên xem tên, lớp và thời gian em vào phòng tranh. Thông tin chỉ dùng cho việc học.</span></label>
       <div class="err-text" id="w-error" role="alert"></div>
       <div class="row"><button id="w-enter">🚪 Vào phòng tranh</button></div>
@@ -247,18 +262,40 @@
         <button id="visits-csv">⬇ Xuất file Excel (CSV)</button>
         <button id="visits-purge">🧹 Xóa nhật ký cũ</button>
       </div>
-      <div class="code-row">
-        <b>Mã vào phòng:</b>
-        <input type="text" id="room-code" maxlength="40" placeholder="Để trống = không cần mã" autocomplete="off">
-        <button id="room-code-save">Lưu mã</button>
-        <span id="room-code-msg"></span>
-      </div>
       <div id="visits-summary"></div>
       <table class="vt">
         <thead>
-          <tr><th>Học sinh</th><th>Lớp</th><th>Vào lúc</th><th>Thời lượng tham gia</th><th>Tranh đã xem</th><th>Video</th><th>Bài tập đã mở</th><th>Tự báo đã xong</th><th>Hoạt động cuối</th></tr>
+          <tr><th>Học sinh</th><th>Mã số</th><th>Lớp</th><th>Vào lúc</th><th>Thời lượng tham gia</th><th>Tranh đã xem</th><th>Video</th><th>Bài tập đã mở</th><th>Tự báo đã xong</th><th>Hoạt động cuối</th></tr>
         </thead>
         <tbody id="visits-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Quản lý học sinh và mã số (chỉ giáo viên) -->
+  <div id="roster-modal">
+    <div class="visits-box">
+      <div class="visits-head">
+        <h3>👥 Học sinh và mã số</h3>
+        <div>
+          <button id="roster-refresh">🔄 Làm mới</button>
+          <button id="roster-close">Đóng</button>
+        </div>
+      </div>
+      <div class="roster-add">
+        <b>Thêm học sinh</b> (mỗi dòng một em, dạng <code>Họ và tên, Lớp</code>; có thể dán thẳng từ Excel):
+        <textarea id="roster-input" rows="4" placeholder="Nguyễn Văn A, 6A1&#10;Lê Thị B, 6A2"></textarea>
+        <div class="roster-actions">
+          <button id="roster-create">➕ Tạo mã số</button>
+          <button id="roster-csv">⬇ Xuất danh sách (CSV)</button>
+          <button id="roster-print">🖨 In phiếu mã số</button>
+          <span>Số tranh tối đa mỗi em: <input type="number" id="roster-limit" min="0" max="45" value="1"> <button id="roster-limit-save">Lưu</button> <small>(0 = không giới hạn)</small></span>
+        </div>
+        <div id="roster-msg" role="status" aria-live="polite"></div>
+      </div>
+      <table class="vt">
+        <thead><tr><th>Mã số</th><th>Họ và tên</th><th>Lớp</th><th>Tranh đã nộp</th><th>Lần vào phòng</th><th>Thao tác</th></tr></thead>
+        <tbody id="roster-body"></tbody>
       </table>
     </div>
   </div>
@@ -351,7 +388,7 @@
 
     const $ = (id) => document.getElementById(id);
     const TZ = 'Asia/Ho_Chi_Minh';
-    const inUI = (t) => !!(t && t.closest && t.closest('#mobile-controls, #modal, #teacher-login-btn, #visits-btn, #login-modal, #welcome-modal, #visits-modal'));
+    const inUI = (t) => !!(t && t.closest && t.closest('#mobile-controls, #modal, #teacher-login-btn, #visits-btn, #roster-btn, #login-modal, #welcome-modal, #visits-modal, #roster-modal'));
     const isTyping = (e) => ['INPUT', 'TEXTAREA'].includes(e.target.tagName);
 
     // ---------- Tiện ích ----------
@@ -460,57 +497,38 @@
       } catch (e) { /* bỏ qua */ }
     });
 
-    // Chuẩn hóa tên và lớp để bớt sai chính tả, bớt trùng lặp: "nguyễn  văn a" -> "Nguyễn Văn A", "6a 1" -> "6A1"
-    function cleanName(s) {
-      return String(s || '').replace(/\s+/g, ' ').trim().toLowerCase().replace(/(^|\s)\S/g, (c) => c.toUpperCase());
-    }
-    function cleanClass(s) { return String(s || '').replace(/\s+/g, '').toUpperCase(); }
-
-    // Nếu giáo viên đã đặt "mã vào phòng" thì hiện ô nhập mã
-    let codeRequired = false;
-    async function checkCodeRequired() {
-      try {
-        const { data, error } = await supabase.rpc('room_code_required');
-        codeRequired = !error && data === true;
-      } catch (e) { codeRequired = false; }
-      $('w-code').style.display = codeRequired ? 'block' : 'none';
-    }
-
+    // Vào phòng bằng MÃ SỐ do giáo viên cấp. Việc kiểm tra mã làm ở phía Supabase (hàm start_visit),
+    // tên và lớp lấy từ danh sách của giáo viên nên học sinh không tự gõ / giả tên được.
     async function enterRoom() {
-      const name = cleanName($('w-name').value);
-      const cls = cleanClass($('w-class').value);
       const code = $('w-code').value.trim();
       const fail = (m) => { $('w-error').textContent = m; };
-      if (!name) return fail('Vui lòng nhập họ và tên.');
-      if (codeRequired && !code) return fail('Vui lòng nhập mã vào phòng (hỏi giáo viên).');
+      if (!code) return fail('Vui lòng nhập mã số học sinh (hỏi giáo viên).');
       if (!$('w-consent').checked) return fail('Em cần tích đồng ý ở phía trên để vào phòng tranh.');
       $('w-error').textContent = '';
       $('w-enter').disabled = true;
 
       const id = newId();
-      const row = { id, student_name: name, class_name: cls || null };
-      if (codeRequired) row.access_code = code;
-      const { error } = await supabase.from('visits').insert([row]);
-      if (error && codeRequired && /row-level security/i.test(error.message)) {
-        $('w-enter').disabled = false;
-        return fail('Mã vào phòng chưa đúng. Hãy hỏi lại giáo viên.');
+      const { data, error } = await supabase.rpc('start_visit', { p_code: code, p_visit: id });
+      $('w-enter').disabled = false;
+      if (error) {
+        if (/invalid_code/.test(error.message)) return fail('Mã số không đúng hoặc đã bị khóa. Hãy hỏi lại giáo viên.');
+        return fail('Không vào được phòng: ' + error.message);
       }
-      if (error) console.warn('Không ghi được lượt vào phòng:', error.message);
+      const name = (data && data.name) || 'bạn';
 
       visitId = id;
       progress = {};
-      store.set(VISIT_KEY, { id: visitId, name, cls });
+      store.set(VISIT_KEY, { id: visitId, name });
       store.set(PROGRESS_KEY, progress);
 
-      $('w-enter').disabled = false;
+      $('w-code').value = '';
       $('welcome-modal').style.display = 'none';
       updateProgressHud();
       sendBeat();
       showToast(`Chào ${name}! Hãy xem tranh, xem video và làm bài tập của từng tranh nhé.`, 8000);
     }
     $('w-enter').addEventListener('click', enterRoom);
-    $('w-name').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('w-class').focus(); });
-    $('w-class').addEventListener('keydown', (e) => { if (e.key === 'Enter') enterRoom(); });
+    $('w-code').addEventListener('keydown', (e) => { if (e.key === 'Enter') enterRoom(); });
     $('w-teacher').addEventListener('click', () => openLogin());
 
     // ---------- Đăng nhập giáo viên (Supabase Auth) ----------
@@ -568,13 +586,15 @@
       btn.classList.toggle('logged-in', on);
       $('hud-teacher').style.display = on ? 'block' : 'none';
       $('visits-btn').style.display = on ? 'block' : 'none';
+      $('roster-btn').style.display = on ? 'block' : 'none';
       if (on) {
         $('welcome-modal').style.display = 'none';
         startFeed();
       } else {
         stopFeed();
         $('visits-modal').style.display = 'none';
-        if (!visitId) { checkCodeRequired(); $('welcome-modal').style.display = 'flex'; }
+        $('roster-modal').style.display = 'none';
+        if (!visitId) $('welcome-modal').style.display = 'flex';
       }
       updateProgressHud();
     }
@@ -666,7 +686,7 @@
       data.forEach((r) => {
         const tr = document.createElement('tr');
         tr.className = 'v-row';
-        tr.append(cell(r.student_name), cell(r.class_name || ''), cell(fmtDateTime(r.entered_at)), cell(durationText(r)),
+        tr.append(cell(r.student_name), cell(r.student_code || '—'), cell(r.class_name || ''), cell(fmtDateTime(r.entered_at)), cell(durationText(r)),
           cell(r.viewed), cell(r.videos), cell(r.quizzes), cell(r.done_count),
           cell(r.last_activity ? fmtTime(r.last_activity) : '—'));
         tr.addEventListener('click', () => toggleDetail(tr, r.id));
@@ -680,7 +700,7 @@
       const det = document.createElement('tr');
       det.className = 'v-detail';
       const td = document.createElement('td');
-      td.colSpan = 9;
+      td.colSpan = 10;
       td.textContent = 'Đang tải...';
       det.appendChild(td);
       row.after(det);
@@ -700,24 +720,9 @@
     window.openVisits = async () => {
       $('visits-modal').style.display = 'flex';
       resetUnread();
-      loadRoomCode();
       startVisitsTimer();
       await loadVisits();
     };
-
-    // Mã vào phòng: giáo viên đặt, học sinh phải nhập mới vào được
-    async function loadRoomCode() {
-      $('room-code-msg').textContent = '';
-      const { data, error } = await supabase.from('room_settings').select('value').eq('key', 'room_code').maybeSingle();
-      $('room-code').value = (!error && data) ? data.value : '';
-      if (error) $('room-code-msg').textContent = 'Chưa đọc được (đã chạy supabase_improvements.sql chưa?)';
-    }
-    $('room-code-save').addEventListener('click', async () => {
-      const v = $('room-code').value.trim();
-      const { error } = await supabase.from('room_settings').upsert([{ key: 'room_code', value: v }]);
-      $('room-code-msg').textContent = error ? 'Lỗi: ' + error.message
-        : (v ? '✅ Đã lưu. Học sinh cần nhập mã này để vào phòng.' : '✅ Đã tắt mã: học sinh vào phòng không cần mã.');
-    });
 
     // Xuất CSV (mở được bằng Excel). Chống "CSV injection" vì tên do học sinh tự gõ.
     function csvCell(v) {
@@ -727,10 +732,10 @@
     }
     $('visits-csv').addEventListener('click', () => {
       if (!lastRows.length) { showToast('Chưa có dữ liệu để xuất.'); return; }
-      const head = ['Học sinh', 'Lớp', 'Vào lúc', 'Thời lượng tham gia', 'Tranh đã xem', 'Video', 'Bài tập đã mở', 'Tự báo đã xong', 'Hoạt động cuối'];
+      const head = ['Học sinh', 'Mã số', 'Lớp', 'Vào lúc', 'Thời lượng tham gia', 'Tranh đã xem', 'Video', 'Bài tập đã mở', 'Tự báo đã xong', 'Hoạt động cuối'];
       const lines = [head.map(csvCell).join(',')];
       lastRows.forEach((r) => lines.push([
-        r.student_name, r.class_name || '', fmtDateTime(r.entered_at), fmtDuration(r.duration_seconds),
+        r.student_name, r.student_code || '', r.class_name || '', fmtDateTime(r.entered_at), fmtDuration(r.duration_seconds),
         r.viewed, r.videos, r.quizzes, r.done_count, r.last_activity ? fmtDateTime(r.last_activity) : ''
       ].map(csvCell).join(',')));
       const blob = new Blob(['\uFEFF' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
@@ -764,6 +769,156 @@
     });
     $('visits-refresh').addEventListener('click', loadVisits);
     $('visits-close').addEventListener('click', () => { $('visits-modal').style.display = 'none'; });
+
+    // ---------- Quản lý học sinh và mã số (giáo viên) ----------
+    const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';   // bỏ các ký tự dễ nhầm: 0 O 1 I L
+    function makeCode(len = 6) {
+      const buf = new Uint32Array(len);
+      crypto.getRandomValues(buf);
+      return [...buf].map((n) => CODE_ALPHABET[n % CODE_ALPHABET.length]).join('');
+    }
+    const tidy = (x) => String(x || '').replace(/\s+/g, ' ').trim();
+    const escHtml = (x) => String(x ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    let rosterRows = [];
+
+    function rosterMsg(text, kind) {
+      $('roster-msg').textContent = text || '';
+      $('roster-msg').className = kind || '';
+    }
+    const isDup = (error) => !!error && (error.code === '23505' || /duplicate key|unique/i.test(error.message));
+
+    async function loadRoster() {
+      const body = $('roster-body');
+      body.innerHTML = '';
+      const { data, error } = await supabase.from('student_roster').select('*');
+      if (error) {
+        rosterMsg('Lỗi tải danh sách: ' + error.message + ' (bạn đã chạy file supabase_student_codes.sql chưa?)', 'err');
+        return;
+      }
+      rosterRows = data.sort((a, b) =>
+        (a.class_name || '').localeCompare(b.class_name || '', 'vi', { numeric: true }) ||
+        a.full_name.localeCompare(b.full_name, 'vi'));
+      rosterMsg(`Có ${rosterRows.length} học sinh.`, '');
+
+      const { data: st } = await supabase.from('room_settings').select('value').eq('key', 'max_per_student').maybeSingle();
+      if (st && /^[0-9]+$/.test(st.value)) $('roster-limit').value = st.value;
+
+      rosterRows.forEach((r) => {
+        const tr = document.createElement('tr');
+        if (!r.active) tr.className = 'inactive';
+        const codeTd = cell(r.code); codeTd.className = 'code-cell';
+        tr.append(codeTd, cell(r.full_name), cell(r.class_name || ''), cell(r.submitted), cell(r.visit_count));
+        const act = document.createElement('td');
+        const mk = (label, fn) => { const b = document.createElement('button'); b.className = 'row-btn'; b.textContent = label; b.addEventListener('click', fn); act.appendChild(b); };
+        mk('🔁 Đổi mã', () => changeCode(r));
+        mk(r.active ? '🔒 Khóa' : '🔓 Mở', () => toggleActive(r));
+        mk('🗑 Xóa', () => deleteStudent(r));
+        tr.appendChild(act);
+        body.appendChild(tr);
+      });
+    }
+
+    window.openRoster = async () => {
+      if (!isTeacherLoggedIn) return;
+      $('roster-modal').style.display = 'flex';
+      await loadRoster();
+    };
+    $('roster-close').addEventListener('click', () => { $('roster-modal').style.display = 'none'; });
+    $('roster-refresh').addEventListener('click', loadRoster);
+
+    // Tạo mã cho danh sách dán vào (mỗi dòng: Họ tên, Lớp)
+    $('roster-create').addEventListener('click', async () => {
+      const lines = $('roster-input').value.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+      if (!lines.length) { rosterMsg('Hãy dán danh sách học sinh vào ô trên (mỗi dòng một em).', 'err'); return; }
+      if (lines.length > 200) { rosterMsg('Mỗi lần chỉ tạo tối đa 200 học sinh.', 'err'); return; }
+      const people = [];
+      for (const [i, l] of lines.entries()) {
+        const parts = l.split(/\t|;|,/).map(tidy);
+        const full_name = parts[0], class_name = parts[1] || null;
+        if (!full_name || full_name.length > 60) { rosterMsg(`Dòng ${i + 1} không hợp lệ (họ tên trống hoặc dài quá 60 ký tự): "${l}"`, 'err'); return; }
+        if (class_name && class_name.length > 20) { rosterMsg(`Dòng ${i + 1}: tên lớp dài quá 20 ký tự.`, 'err'); return; }
+        people.push({ full_name, class_name });
+      }
+      $('roster-create').disabled = true;
+      rosterMsg('Đang tạo mã số...', '');
+      let lastError = null;
+      for (let attempt = 0; attempt < 4; attempt++) {
+        const used = new Set();
+        const rows = people.map((p) => { let c; do { c = makeCode(); } while (used.has(c)); used.add(c); return { ...p, code: c }; });
+        const { error } = await supabase.from('students').insert(rows);
+        if (!error) { lastError = null; break; }
+        lastError = error;
+        if (!isDup(error)) break;       // trùng mã ngẫu nhiên (rất hiếm) thì thử lại với mã khác
+      }
+      $('roster-create').disabled = false;
+      if (lastError) { rosterMsg('Lỗi khi tạo: ' + lastError.message, 'err'); return; }
+      $('roster-input').value = '';
+      await loadRoster();
+      rosterMsg(`✅ Đã tạo ${people.length} mã số. Hãy bấm "In phiếu mã số" hoặc "Xuất danh sách" để phát cho học sinh.`, 'ok');
+    });
+
+    async function changeCode(r) {
+      if (!confirm(`Đổi mã số của ${r.full_name}?\nMã cũ (${r.code}) sẽ không dùng được nữa.`)) return;
+      for (let attempt = 0; attempt < 4; attempt++) {
+        const { error } = await supabase.from('students').update({ code: makeCode() }).eq('id', r.id);
+        if (!error) { await loadRoster(); rosterMsg(`✅ Đã đổi mã số cho ${r.full_name}.`, 'ok'); return; }
+        if (!isDup(error)) { rosterMsg('Lỗi khi đổi mã: ' + error.message, 'err'); return; }
+      }
+      rosterMsg('Không đổi được mã, hãy thử lại.', 'err');
+    }
+    async function toggleActive(r) {
+      const { error } = await supabase.from('students').update({ active: !r.active }).eq('id', r.id);
+      if (error) { rosterMsg('Lỗi: ' + error.message, 'err'); return; }
+      await loadRoster();
+      rosterMsg(r.active ? `🔒 Đã khóa mã của ${r.full_name} (em không vào phòng hoặc nộp bài được).` : `🔓 Đã mở lại mã của ${r.full_name}.`, 'ok');
+    }
+    async function deleteStudent(r) {
+      if (!confirm(`Xóa học sinh ${r.full_name} (${r.code})?\nTranh em đã nộp vẫn được giữ nguyên trong phòng tranh.`)) return;
+      const { error } = await supabase.from('students').delete().eq('id', r.id);
+      if (error) { rosterMsg('Lỗi khi xóa: ' + error.message, 'err'); return; }
+      await loadRoster();
+      rosterMsg(`Đã xóa ${r.full_name}.`, 'ok');
+    }
+
+    $('roster-limit-save').addEventListener('click', async () => {
+      const v = String($('roster-limit').value).trim();
+      if (!/^[0-9]+$/.test(v) || Number(v) > 45) { rosterMsg('Số tranh tối đa phải là số từ 0 đến 45.', 'err'); return; }
+      const { error } = await supabase.from('room_settings').upsert([{ key: 'max_per_student', value: v }]);
+      rosterMsg(error ? 'Lỗi: ' + error.message : (v === '0' ? '✅ Đã bỏ giới hạn số tranh.' : `✅ Mỗi học sinh được nộp tối đa ${v} tranh.`), error ? 'err' : 'ok');
+    });
+
+    $('roster-csv').addEventListener('click', () => {
+      if (!rosterRows.length) { rosterMsg('Chưa có học sinh để xuất.', 'err'); return; }
+      const lines = [['Mã số', 'Họ và tên', 'Lớp', 'Tranh đã nộp', 'Lần vào phòng', 'Trạng thái'].map(csvCell).join(',')];
+      rosterRows.forEach((r) => lines.push([r.code, r.full_name, r.class_name || '', r.submitted, r.visit_count, r.active ? 'Đang dùng' : 'Đã khóa'].map(csvCell).join(',')));
+      const blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `danh-sach-ma-so-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    });
+
+    // In phiếu mã số để cắt phát cho từng em
+    $('roster-print').addEventListener('click', () => {
+      const rows = rosterRows.filter((r) => r.active);
+      if (!rows.length) { rosterMsg('Chưa có mã nào để in.', 'err'); return; }
+      const galleryUrl = location.origin + location.pathname;
+      const submitUrl = galleryUrl.replace(/[^/]*$/, '') + 'nopbai.html';
+      const w = window.open('', '_blank');
+      if (!w) { rosterMsg('Trình duyệt đang chặn cửa sổ mới. Hãy cho phép cửa sổ bật lên rồi thử lại.', 'err'); return; }
+      const cards = rows.map((r) => `<div class="c"><div class="n">${escHtml(r.full_name)}</div><div class="k">${escHtml(r.class_name || '')}</div><div class="code">${escHtml(r.code)}</div></div>`).join('');
+      w.document.write(`<!doctype html><html lang="vi"><head><meta charset="utf-8"><title>Phiếu mã số học sinh</title><style>
+        body{font-family:'Segoe UI',sans-serif;margin:16px;color:#222} h1{font-size:16px;margin:0 0 4px} p{font-size:12px;margin:2px 0 12px;color:#444}
+        .g{display:grid;grid-template-columns:repeat(3,1fr);gap:8px} .c{border:1px dashed #888;border-radius:6px;padding:10px;break-inside:avoid;text-align:center}
+        .n{font-weight:700;font-size:14px} .k{font-size:12px;color:#555;min-height:16px} .code{font-family:Consolas,monospace;font-size:24px;font-weight:700;letter-spacing:4px;margin-top:6px}
+        @media print{body{margin:8mm}}</style></head><body>
+        <h1>Mã số học sinh - Phòng tranh 3D</h1>
+        <p>Vào phòng tranh: ${escHtml(galleryUrl)}<br>Nộp bài: ${escHtml(submitUrl)}<br>Hãy giữ kín mã số của em, không đưa cho bạn khác.</p>
+        <div class="g">${cards}</div></body></html>`);
+      w.document.close();
+      setTimeout(() => { try { w.focus(); w.print(); } catch (e) { /* bỏ qua */ } }, 400);
+    });
 
     // ---------- Cảnh 3D ----------
     const scene = new THREE.Scene();
@@ -1399,7 +1554,6 @@
         progress = store.get(PROGRESS_KEY) || {};
         sendBeat();
       } else {
-        checkCodeRequired();
         $('welcome-modal').style.display = 'flex';
       }
     })();
