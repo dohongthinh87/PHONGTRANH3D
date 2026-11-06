@@ -57,6 +57,9 @@
   .status.ok { display: block; background: #e6f4ea; color: #137333; }
   .status.err { display: block; background: #fce8e6; color: var(--red); }
   .status.info { display: block; background: #e8f0fe; color: #174ea6; }
+  #student-code::placeholder { text-transform: none; letter-spacing: normal; font-weight: 400; }
+  .who { font-size: 13px; margin-top: 6px; font-weight: 600; min-height: 18px; line-height: 1.4; }
+  .who.ok { color: #137333; } .who.err { color: var(--red); }
   .note { font-size: 12px; color: var(--muted); text-align: center; margin-top: 16px; line-height: 1.5; }
 
   @media (max-width: 480px) {
@@ -72,8 +75,9 @@
 
   <form id="submit-form" novalidate>
     <div class="field">
-      <label for="student-name">Họ và tên học sinh</label>
-      <input type="text" id="student-name" maxlength="80" autocomplete="name" placeholder="Ví dụ: Nguyễn Văn A">
+      <label for="student-code">Mã số học sinh (do giáo viên cung cấp)</label>
+      <input type="text" id="student-code" maxlength="20" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Ví dụ: K7M2PX" style="text-transform:uppercase; letter-spacing:3px; font-weight:700;">
+      <div class="who" id="who" role="status" aria-live="polite"></div>
     </div>
 
     <div class="field">
@@ -108,7 +112,7 @@
     <div class="status" id="status" role="status" aria-live="polite"></div>
   </form>
 
-  <div class="note">Mỗi ô chỉ nộp được một lần. Nếu cần sửa hoặc đổi bài, hãy báo giáo viên.</div>
+  <div class="note">Mỗi học sinh có một mã số riêng, hãy giữ kín mã của em. Mỗi ô chỉ nộp được một lần. Nếu cần sửa hoặc đổi bài, hãy báo giáo viên.</div>
 </main>
 
 <script type="module">
@@ -133,7 +137,7 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
 // ---------- Phần tử ----------
 const $ = (id) => document.getElementById(id);
 const form = $('submit-form'), btn = $('btn-submit'), slotsBox = $('slots'), chosen = $('chosen');
-const fileInput = $('artwork-file'), descInput = $('artwork-desc');
+const fileInput = $('artwork-file'), descInput = $('artwork-desc'), codeInput = $('student-code');
 let selectedSlot = null;
 let previewUrl = null;
 
@@ -152,6 +156,38 @@ function setBusy(busy, text) {
 function formatSize(bytes) {
   return bytes >= 1024 * 1024 ? (bytes / 1024 / 1024).toFixed(1) + ' MB' : Math.round(bytes / 1024) + ' KB';
 }
+
+// Đổi mã lỗi của Supabase thành câu dễ hiểu cho học sinh
+function friendly(msg) {
+  const m = String(msg || '');
+  if (/invalid_code/.test(m)) return 'Mã số không đúng hoặc đã bị khóa. Hãy hỏi lại giáo viên.';
+  if (/slot_taken/.test(m)) return 'Ô này vừa có bạn khác chọn. Vui lòng chọn ô khác.';
+  if (/limit_reached/.test(m)) return 'Em đã nộp đủ số tranh được phép. Nếu cần đổi bài, hãy báo giáo viên.';
+  if (/ticket_invalid/.test(m)) return 'Phiên nộp bài đã hết hạn. Vui lòng bấm gửi lại.';
+  if (/bad_text/.test(m)) return 'Tiêu đề (tối đa 100 ký tự) hoặc mô tả (tối đa 500 ký tự) chưa hợp lệ.';
+  if (/bad_image/.test(m)) return 'Ảnh tải lên không hợp lệ. Vui lòng thử lại.';
+  if (/bad_slot/.test(m)) return 'Ô tranh không hợp lệ.';
+  if (/row-level security/i.test(m)) return 'Không tải ảnh lên được. Hãy bấm gửi lại, nếu vẫn lỗi hãy báo giáo viên.';
+  return m;
+}
+
+// ---------- Tra mã số: chào tên học sinh ----------
+let whoTimer = null;
+async function lookupStudent() {
+  const code = codeInput.value.trim();
+  const who = $('who');
+  if (!code) { who.className = 'who'; who.textContent = ''; return; }
+  who.className = 'who'; who.textContent = 'Đang kiểm tra mã số...';
+  const { data, error } = await supabase.rpc('student_lookup', { p_code: code });
+  if (codeInput.value.trim() !== code) return;          // em đã gõ tiếp trong lúc chờ
+  if (error) { who.className = 'who err'; who.textContent = 'Không kiểm tra được mã: ' + error.message; return; }
+  if (!data) { who.className = 'who err'; who.textContent = 'Mã số không đúng hoặc đã bị khóa. Hãy hỏi lại giáo viên.'; return; }
+  const count = data.limit > 0 ? `đã nộp ${data.submitted}/${data.limit} tranh` : `đã nộp ${data.submitted} tranh`;
+  who.className = 'who ok';
+  who.textContent = `✅ Xin chào ${data.name}${data.class ? ' (' + data.class + ')' : ''} · ${count}`;
+}
+codeInput.addEventListener('input', () => { clearTimeout(whoTimer); whoTimer = setTimeout(lookupStudent, 600); });
+codeInput.addEventListener('blur', lookupStudent);
 
 // ---------- Bảng chọn ô ----------
 function renderSlots(taken) {
@@ -240,12 +276,12 @@ form.addEventListener('submit', async (event) => {
   event.preventDefault();
   clearStatus();
 
-  const name = $('student-name').value.trim();
+  const code = codeInput.value.trim();
   const title = $('artwork-title').value.trim();
   const desc = descInput.value.trim();
   const file = fileInput.files[0];
 
-  if (!name) return showStatus('Vui lòng nhập họ và tên.', 'err');
+  if (!code) return showStatus('Vui lòng nhập mã số học sinh (do giáo viên cung cấp).', 'err');
   if (!selectedSlot) return showStatus('Vui lòng chọn một ô để treo tranh.', 'err');
   if (!title) return showStatus('Vui lòng nhập tiêu đề tác phẩm.', 'err');
   if (!file) return showStatus('Vui lòng chọn file ảnh bài làm.', 'err');
@@ -256,55 +292,46 @@ form.addEventListener('submit', async (event) => {
   setBusy(true, 'Đang xử lý ảnh...');
 
   try {
-    // 1. Kiểm tra lại ô còn trống
-    const { data: existing, error: checkError } = await supabase
-      .from(TABLE).select('id').eq('id', slot).maybeSingle();
-    if (checkError) throw new Error('Lỗi kiểm tra ô: ' + checkError.message);
-    if (existing) {
-      await loadSlots();
-      throw new Error(`Ô số ${slot} vừa có bạn khác chọn. Vui lòng chọn ô khác.`);
-    }
-
-    // 2. Chuẩn bị ảnh
+    // 1. Chuẩn bị ảnh
     const img = await prepareImage(file);
     if (img.blob.size > MAX_UPLOAD) {
       throw new Error('Ảnh vẫn còn quá nặng (trên 5MB). Vui lòng chọn ảnh khác.');
     }
 
-    // 3. Tải ảnh lên (tên duy nhất, không ghi đè)
+    // 2. Kiểm tra mã số + ô còn trống + số tranh được phép, xin "phiếu" cho phép tải ảnh
+    setBusy(true, 'Đang kiểm tra mã số...');
+    const { data: ticket, error: ticketError } = await supabase.rpc('request_upload', { p_code: code, p_slot: slot });
+    if (ticketError) {
+      if (/slot_taken/.test(ticketError.message)) await loadSlots();
+      throw new Error(friendly(ticketError.message));
+    }
+
+    // 3. Tải ảnh lên thư mục mang tên phiếu (không ghi đè được)
     setBusy(true, 'Đang tải ảnh lên...');
-    const rand = Math.random().toString(36).slice(2, 10);
-    const fileName = `artwork_${slot}_${Date.now()}_${rand}.${img.ext}`;
+    const fileName = `${ticket}/artwork_${slot}_${Date.now()}.${img.ext}`;
     const { error: uploadError } = await supabase.storage
       .from(BUCKET)
       .upload(fileName, img.blob, { cacheControl: '3600', upsert: false, contentType: img.type });
-    if (uploadError) throw new Error('Lỗi tải ảnh lên Storage: ' + uploadError.message);
+    if (uploadError) throw new Error('Lỗi tải ảnh lên Storage: ' + friendly(uploadError.message));
 
     const { data: urlData } = supabase.storage.from(BUCKET).getPublicUrl(fileName);
 
-    // 4. Lưu thông tin (insert: ô đã có sẽ bị từ chối)
+    // 4. Nộp bài: tên tác giả do hệ thống lấy từ danh sách của giáo viên
     setBusy(true, 'Đang lưu bài...');
-    const { error: dbError } = await supabase.from(TABLE).insert([{
-      id: slot,
-      title: title,
-      author: name,
-      description: desc,
-      image_url: urlData.publicUrl,
-      status: 'approved'
-    }]);
-    if (dbError) {
-      if (dbError.code === '23505') {
-        await loadSlots();
-        throw new Error(`Ô số ${slot} đã có tranh. Vui lòng chọn ô khác.`);
-      }
-      throw new Error('Lỗi lưu cơ sở dữ liệu: ' + dbError.message);
+    const { data: result, error: submitError } = await supabase.rpc('submit_artwork', {
+      p_ticket: ticket, p_title: title, p_desc: desc, p_image_url: urlData.publicUrl
+    });
+    if (submitError) {
+      if (/slot_taken/.test(submitError.message)) await loadSlots();
+      throw new Error(friendly(submitError.message));
     }
 
-    showStatus(`🎉 Thành công! Em ${name} đã gửi bài cho ô số ${slot}.`, 'ok');
+    showStatus(`🎉 Thành công! Em ${result && result.name ? result.name : ''} đã gửi bài cho ô số ${slot}.`.replace('Em  đã', 'Em đã'), 'ok');
     form.reset();
     selectedSlot = null;
     $('desc-count').textContent = '0';
     $('preview').style.display = 'none';
+    $('who').className = 'who'; $('who').textContent = '';
     await loadSlots();
   } catch (error) {
     console.error('Chi tiết lỗi:', error);
