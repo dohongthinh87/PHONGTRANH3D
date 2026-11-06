@@ -130,7 +130,7 @@
     }
     .external-link-btn:hover { background: #1557b0; }
 
-    .task-box { display: none; background: #fff8e1; border: 1px solid #ffd54f; border-radius: 10px; padding: 12px 14px; }
+    .task-box { display: none; background: #fff8e1; border: 1px solid #ffd54f; border-radius: 10px; padding: 12px 14px; margin-bottom: 14px; }
     .task-title { font-weight: 700; color: #8a5a00; font-size: 14px; margin-bottom: 6px; }
     .task-box ul { list-style: none; margin: 0 0 10px; padding: 0; font-size: 14px; line-height: 1.8; }
     .task-box .hint { font-size: 12px; color: #6b5200; margin: 0 0 10px; line-height: 1.5; }
@@ -256,7 +256,7 @@
       <div id="visits-summary"></div>
       <table class="vt">
         <thead>
-          <tr><th>Học sinh</th><th>Lớp</th><th>Vào lúc</th><th>Tranh đã xem</th><th>Video</th><th>Bài tập đã mở</th><th>Tự báo đã xong</th><th>Hoạt động cuối</th></tr>
+          <tr><th>Học sinh</th><th>Lớp</th><th>Vào lúc</th><th>Thời lượng tham gia</th><th>Tranh đã xem</th><th>Video</th><th>Bài tập đã mở</th><th>Tự báo đã xong</th><th>Hoạt động cuối</th></tr>
         </thead>
         <tbody id="visits-body"></tbody>
       </table>
@@ -282,6 +282,19 @@
           <p id="m-desc">Mô tả</p>
         </div>
 
+        <!-- Nhiệm vụ (video + bài tập) đặt ngay dưới mô tả để học sinh thấy ngay -->
+        <div id="task-box" class="task-box">
+          <div class="task-title">📚 Nhiệm vụ của tranh này</div>
+          <ul id="task-list"></ul>
+          <p class="hint">Sau khi xem tranh, hãy xem video (nếu có) và làm bài tập. Làm xong, quay lại phòng tranh để xem tranh tiếp theo.</p>
+          <div class="task-actions">
+            <button id="btn-video" onclick="playVideo()">▶ Xem video</button>
+            <button id="btn-quiz" onclick="openQuiz()">📝 Làm bài tập</button>
+            <button id="btn-done" onclick="markDone()" style="display:none">✅ Em đã làm xong bài tập</button>
+          </div>
+          <div id="video-wrap"></div>
+        </div>
+
         <div id="teacher-form-info" class="teacher-tools" style="margin-top:0;">
           <label for="edit-title" style="font-size:12px; font-weight:bold; color:#1a73e8;">Chỉnh sửa tiêu đề:</label>
           <input type="text" id="edit-title" maxlength="100">
@@ -304,18 +317,6 @@
         </div>
 
         <div class="student-view-area">
-          <div id="task-box" class="task-box">
-            <div class="task-title">📚 Nhiệm vụ của tranh này</div>
-            <ul id="task-list"></ul>
-            <p class="hint">Sau khi xem tranh, hãy xem video (nếu có) và làm bài tập. Làm xong, quay lại phòng tranh để xem tranh tiếp theo.</p>
-            <div class="task-actions">
-              <button id="btn-video" onclick="playVideo()">▶ Xem video</button>
-              <button id="btn-quiz" onclick="openQuiz()">📝 Làm bài tập</button>
-              <button id="btn-done" onclick="markDone()" style="display:none">✅ Em đã làm xong bài tập</button>
-            </div>
-            <div id="video-wrap"></div>
-          </div>
-
           <div id="audio-container" style="display:none;">
             <label style="font-size: 12px; color: #666; font-weight: bold; display: block; margin-bottom: 4px;">🎧 Thuyết minh:</label>
             <audio id="m-audio" controls></audio>
@@ -433,6 +434,32 @@
         });
     }
 
+    // Đo thời lượng tham gia: cứ 60 giây báo "em vẫn ở trong phòng" một lần.
+    // Vẫn tính khi học sinh đang làm bài ở tab khác, nhưng ngừng nếu không thao tác gì quá 30 phút.
+    let lastActive = Date.now();
+    ['mousedown', 'mousemove', 'keydown', 'touchstart', 'click'].forEach((ev) =>
+      window.addEventListener(ev, () => { lastActive = Date.now(); }, { passive: true }));
+
+    function sendBeat() {
+      if (!visitId || isTeacherLoggedIn) return;
+      if (Date.now() - lastActive > 30 * 60 * 1000) return;
+      supabase.rpc('visit_heartbeat', { p_visit: visitId })
+        .then(({ error }) => { if (error) console.warn('Không báo được thời lượng:', error.message); });
+    }
+    setInterval(sendBeat, 60000);
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') sendBeat(); });
+    // Khi đóng trang: báo "đã rời phòng" để giáo viên thấy tổng thời lượng
+    window.addEventListener('pagehide', () => {
+      if (!visitId || isTeacherLoggedIn) return;
+      try {
+        fetch(`${SUPABASE_URL}/rest/v1/rpc/visit_leave`, {
+          method: 'POST', keepalive: true,
+          headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ p_visit: visitId })
+        });
+      } catch (e) { /* bỏ qua */ }
+    });
+
     // Chuẩn hóa tên và lớp để bớt sai chính tả, bớt trùng lặp: "nguyễn  văn a" -> "Nguyễn Văn A", "6a 1" -> "6A1"
     function cleanName(s) {
       return String(s || '').replace(/\s+/g, ' ').trim().toLowerCase().replace(/(^|\s)\S/g, (c) => c.toUpperCase());
@@ -478,6 +505,7 @@
       $('w-enter').disabled = false;
       $('welcome-modal').style.display = 'none';
       updateProgressHud();
+      sendBeat();
       showToast(`Chào ${name}! Hãy xem tranh, xem video và làm bài tập của từng tranh nhé.`, 8000);
     }
     $('w-enter').addEventListener('click', enterRoom);
@@ -518,6 +546,13 @@
           const msg = `${r.student_name || 'Một học sinh'}${r.class_name ? ' (' + r.class_name + ')' : ''} vừa vào phòng tranh lúc ${fmtTime(r.entered_at || new Date())}`;
           showToast('🔔 ' + msg, 10000);
           notifyNewVisit(msg);
+          if ($('visits-modal').style.display === 'flex') loadVisits();
+        })
+        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'visits' }, (payload) => {
+          const r = payload.new || {};
+          if (!r.left_at) return;   // chỉ báo khi học sinh rời phòng (các lần "báo còn ở trong phòng" thì bỏ qua)
+          const secs = (new Date(r.left_at) - new Date(r.entered_at)) / 1000;
+          showToast(`👋 ${r.student_name || 'Một học sinh'}${r.class_name ? ' (' + r.class_name + ')' : ''} đã rời phòng tranh. Thời gian tham gia: ${fmtDuration(secs)}.`, 10000);
           if ($('visits-modal').style.display === 'flex') loadVisits();
         })
         .subscribe();
@@ -584,6 +619,33 @@
     // ---------- Bảng nhật ký học sinh (giáo viên) ----------
     const EVENT_LABEL = { view: 'Xem tranh', video: 'Xem video', quiz: 'Mở bài tập', done: 'Tự báo đã làm xong' };
     let lastRows = [];
+
+    function fmtDuration(sec) {
+      sec = Math.max(0, Math.round(Number(sec) || 0));
+      const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;
+      if (h) return `${h} giờ ${String(m).padStart(2, '0')} phút`;
+      if (m) return `${m} phút ${String(s).padStart(2, '0')} giây`;
+      return `${s} giây`;
+    }
+    // Coi là "đang trong phòng" nếu chưa rời và vừa báo hiệu trong 2,5 phút gần đây
+    function isOnline(r) {
+      return !r.left_at && r.last_seen && (Date.now() - new Date(r.last_seen).getTime()) < 150000;
+    }
+    function durationText(r) {
+      if (!r.last_seen && !r.left_at) return '—';
+      if (isOnline(r)) return `🟢 ${fmtDuration((Date.now() - new Date(r.entered_at).getTime()) / 1000)} (đang trong phòng)`;
+      return fmtDuration(r.duration_seconds);
+    }
+
+    // Tự làm mới bảng nhật ký mỗi 30 giây khi đang mở (trừ lúc đang xem chi tiết một học sinh)
+    let visitsTimer = null;
+    function startVisitsTimer() {
+      clearInterval(visitsTimer);
+      visitsTimer = setInterval(() => {
+        if ($('visits-modal').style.display !== 'flex') { clearInterval(visitsTimer); return; }
+        if (!document.querySelector('.v-detail')) loadVisits();
+      }, 30000);
+    }
     const cell = (text) => { const c = document.createElement('td'); c.textContent = String(text ?? ''); return c; };
 
     async function loadVisits() {
@@ -599,12 +661,12 @@
       lastRows = data;
       const today = new Date().toLocaleDateString('vi-VN', { timeZone: TZ });
       const todayCount = data.filter((r) => new Date(r.entered_at).toLocaleDateString('vi-VN', { timeZone: TZ }) === today).length;
-      $('visits-summary').textContent = `Hôm nay: ${todayCount} lượt vào · Đang hiển thị ${data.length} lượt gần nhất. Bấm vào một dòng để xem chi tiết từng tranh.`;
+      $('visits-summary').textContent = `Hôm nay: ${todayCount} lượt vào · Đang trong phòng: ${data.filter(isOnline).length} · Hiển thị ${data.length} lượt gần nhất. Bấm vào một dòng để xem chi tiết từng tranh.`;
 
       data.forEach((r) => {
         const tr = document.createElement('tr');
         tr.className = 'v-row';
-        tr.append(cell(r.student_name), cell(r.class_name || ''), cell(fmtDateTime(r.entered_at)),
+        tr.append(cell(r.student_name), cell(r.class_name || ''), cell(fmtDateTime(r.entered_at)), cell(durationText(r)),
           cell(r.viewed), cell(r.videos), cell(r.quizzes), cell(r.done_count),
           cell(r.last_activity ? fmtTime(r.last_activity) : '—'));
         tr.addEventListener('click', () => toggleDetail(tr, r.id));
@@ -618,7 +680,7 @@
       const det = document.createElement('tr');
       det.className = 'v-detail';
       const td = document.createElement('td');
-      td.colSpan = 8;
+      td.colSpan = 9;
       td.textContent = 'Đang tải...';
       det.appendChild(td);
       row.after(det);
@@ -639,6 +701,7 @@
       $('visits-modal').style.display = 'flex';
       resetUnread();
       loadRoomCode();
+      startVisitsTimer();
       await loadVisits();
     };
 
@@ -664,10 +727,10 @@
     }
     $('visits-csv').addEventListener('click', () => {
       if (!lastRows.length) { showToast('Chưa có dữ liệu để xuất.'); return; }
-      const head = ['Học sinh', 'Lớp', 'Vào lúc', 'Tranh đã xem', 'Video', 'Bài tập đã mở', 'Tự báo đã xong', 'Hoạt động cuối'];
+      const head = ['Học sinh', 'Lớp', 'Vào lúc', 'Thời lượng tham gia', 'Tranh đã xem', 'Video', 'Bài tập đã mở', 'Tự báo đã xong', 'Hoạt động cuối'];
       const lines = [head.map(csvCell).join(',')];
       lastRows.forEach((r) => lines.push([
-        r.student_name, r.class_name || '', fmtDateTime(r.entered_at),
+        r.student_name, r.class_name || '', fmtDateTime(r.entered_at), fmtDuration(r.duration_seconds),
         r.viewed, r.videos, r.quizzes, r.done_count, r.last_activity ? fmtDateTime(r.last_activity) : ''
       ].map(csvCell).join(',')));
       const blob = new Blob(['\uFEFF' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
@@ -788,6 +851,43 @@
       }, undefined, () => { console.warn('Không tải được ảnh:', url); });
     }
 
+    // Nhãn nhỏ ▶ / 📝 ở góc tranh cho học sinh biết tranh nào có video / bài tập
+    function makeBadgeTexture(hasVideo, hasQuiz) {
+      const c = document.createElement('canvas');
+      c.width = 256; c.height = 96;
+      const g = c.getContext('2d');
+      g.fillStyle = '#f59f00';
+      if (g.roundRect) { g.beginPath(); g.roundRect(4, 4, 248, 88, 40); g.fill(); } else { g.fillRect(4, 4, 248, 88); }
+      g.fillStyle = '#ffffff';
+      g.font = 'bold 52px sans-serif';
+      g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.fillText((hasVideo ? '▶ ' : '') + (hasQuiz ? '📝' : ''), 128, 50);
+      return new THREE.CanvasTexture(c);
+    }
+    function updateBadge(painting) {
+      const u = painting.userData;
+      const frame = painting.parent;
+      if (!frame) return;
+      if (u.badge) {
+        frame.remove(u.badge);
+        u.badge.material.map.dispose(); u.badge.material.dispose(); u.badge.geometry.dispose();
+        u.badge = null;
+      }
+      const hasVideo = !!safeUrl(u.videoUrl), hasQuiz = !!safeUrl(u.quizUrl);
+      if (!hasVideo && !hasQuiz) return;
+      const badge = new THREE.Mesh(
+        new THREE.PlaneGeometry(0.62, 0.23),
+        new THREE.MeshBasicMaterial({ map: makeBadgeTexture(hasVideo, hasQuiz), transparent: true })
+      );
+      badge.position.set(0.74, 0.66, 0.075);   // gắn vào khung (không nằm trong danh sách tranh nên không cản click)
+      frame.add(badge);
+      u.badge = badge;
+    }
+    function refreshBadgeFor(art) {
+      const m = artworkMeshes.find((x) => x.userData === art);
+      if (m) updateBadge(m);
+    }
+
     function hangPainting(dataItem, x, y, z, rotY) {
       const frame = new THREE.Mesh(
         new THREE.BoxGeometry(2.3, 1.75, 0.08),
@@ -832,6 +932,7 @@
         externalLink: dataItem.externalLink || ''
       };
       frame.add(painting);
+      updateBadge(painting);
 
       artworkMeshes.push(painting);
       materialsMap.set(dataItem.id, artMat);
@@ -970,6 +1071,38 @@
       renderTasks(art);
     };
 
+    // Mỗi lần mở tranh, đọc lại dữ liệu mới nhất từ Supabase. Nhờ vậy học sinh đang ở trong phòng
+    // vẫn thấy link video / bài tập giáo viên vừa thêm mà không cần tải lại trang.
+    async function refreshArtworkFromServer(info) {
+      try {
+        const { data, error } = await supabase.from('artworks')
+          .select('title, author, description, image_url, quiz_url, video_url, status')
+          .eq('id', info.id).maybeSingle();
+        if (error) { console.warn('Không đọc được dữ liệu tranh:', error.message); return; }
+        if (!data || data.status === 'pending' || data.status === 'rejected') return;
+        const d = info.defaults || {};
+        info.title = data.title || d.title;
+        info.author = data.author || d.author;
+        info.description = data.description || d.description;
+        info.quizUrl = data.quiz_url || d.quizUrl || '';
+        info.videoUrl = data.video_url || d.videoUrl || '';
+        const newImage = data.image_url || d.image;
+        if (newImage !== info.image) {
+          info.image = newImage;
+          const mat = materialsMap.get(info.id);
+          if (mat) loadIntoMaterial(mat, newImage);
+        }
+        if (currentSelectedArtwork === info) {
+          $('m-title').innerText = info.title || '';
+          $('m-author').innerText = 'Tác giả: ' + (info.author || '');
+          $('m-desc').innerText = info.description || '';
+          setModalImage(info);
+          renderTasks(info);
+        }
+        refreshBadgeFor(info);
+      } catch (e) { console.warn('Lỗi làm mới tranh:', e); }
+    }
+
     // Học sinh tự báo đã làm xong (hệ thống không đọc được kết quả từ trang bài tập bên ngoài)
     window.markDone = () => {
       const art = currentSelectedArtwork;
@@ -1012,6 +1145,7 @@
         renderTasks(info);
 
         $('modal').style.display = 'flex';
+        if (!isTeacherLoggedIn) refreshArtworkFromServer(info);   // lấy link mới nhất giáo viên vừa lưu
       }
     }
 
@@ -1063,6 +1197,7 @@
       $('m-author').innerText = 'Tác giả: ' + newAuthor;
       $('m-desc').innerText = newDesc;
       renderTasks(art);
+      refreshBadgeFor(art);
       setStatus(`✅ Đã lưu Tác phẩm #${art.id}.`, 'ok');
     };
 
@@ -1209,6 +1344,7 @@
       $('edit-quiz').value = art.quizUrl;
       setModalImage(art);
       renderTasks(art);
+      refreshBadgeFor(art);
       updateProgressHud();
       setStatus(`✅ Đã gỡ Tác phẩm #${art.id}. Ô này đã trống để học sinh nộp lại.`, 'ok');
     };
@@ -1261,6 +1397,7 @@
       if (saved && saved.id) {
         visitId = saved.id;                       // cùng một lượt vào (đang tải lại trang)
         progress = store.get(PROGRESS_KEY) || {};
+        sendBeat();
       } else {
         checkCodeRequired();
         $('welcome-modal').style.display = 'flex';
