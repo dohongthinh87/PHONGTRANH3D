@@ -212,6 +212,11 @@
     #quiz-retry { background: #f59f00; color: #fff; }
     #quiz-reveal { background: #7b1fa2; color: #fff; }
     #btn-inquiz { background: #1a73e8; }
+    /* Nút nổi: luôn thấy được trên điện thoại, không phải cuộn xuống cuối khung tranh */
+    #quiz-fab { display: none; position: fixed; left: 50%; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); z-index: 105;
+      padding: 14px 22px; border: 0; border-radius: 30px; background: #1a73e8; color: #fff; font-size: 16px; font-weight: 800; box-shadow: 0 6px 20px rgba(0,0,0,.45); cursor: pointer; white-space: nowrap; max-width: calc(100vw - 24px); }
+    #quiz-fab.pulse { animation: fabpulse 1.6s ease-in-out infinite; }
+    @keyframes fabpulse { 0%,100% { box-shadow: 0 6px 20px rgba(0,0,0,.45), 0 0 0 0 rgba(26,115,232,.7); } 50% { box-shadow: 0 6px 20px rgba(0,0,0,.45), 0 0 0 12px rgba(26,115,232,0); } }
     .qe-card { border: 1px solid #d5d9de; border-radius: 10px; padding: 12px; margin-bottom: 12px; background: #fafbfc; }
     .qe-card textarea, .qe-card input[type=text] { width: 100%; box-sizing: border-box; padding: 8px; border: 1px solid #ccc; border-radius: 6px; font: inherit; font-size: 13px; margin-bottom: 6px; }
     .qe-head { display: flex; justify-content: space-between; align-items: center; font-weight: 700; margin-bottom: 6px; }
@@ -255,6 +260,7 @@
   <button id="visits-btn" onclick="openVisits()">📊 Nhật ký học sinh</button>
   <button id="roster-btn" onclick="openRoster()">👥 Học sinh và mã số</button>
 
+  <button id="quiz-fab" onclick="openInQuiz()"></button>
   <div id="crosshair"></div>
   <div id="toast-wrap"></div>
 
@@ -493,7 +499,7 @@
 
     const $ = (id) => document.getElementById(id);
     const TZ = 'Asia/Ho_Chi_Minh';
-    const inUI = (t) => !!(t && t.closest && t.closest('#mobile-controls, #modal, #teacher-login-btn, #visits-btn, #roster-btn, #login-modal, #welcome-modal, #visits-modal, #roster-modal, #quiz-modal, #qedit-modal'));
+    const inUI = (t) => !!(t && t.closest && t.closest('#mobile-controls, #modal, #teacher-login-btn, #visits-btn, #roster-btn, #quiz-fab, #login-modal, #welcome-modal, #visits-modal, #roster-modal, #quiz-modal, #qedit-modal'));
     const isTyping = (e) => ['INPUT', 'TEXTAREA'].includes(e.target.tagName);
 
     // ---------- Tiện ích ----------
@@ -1342,9 +1348,9 @@
     function hasAnyQuiz(art) { return (art.quizCount > 0) || !!safeUrl(art.quizUrl); }
 
     function renderTasks(art) {
-      const link = safeUrl(art.quizUrl), video = safeUrl(art.videoUrl), inq = art.quizCount > 0;
+      const link = safeUrl(art.quizUrl), video = safeUrl(art.videoUrl), inq = art.quizCount > 0, qerr = art.quizErr;
       const box = $('task-box');
-      if (!link && !video && !inq) { box.style.display = 'none'; return; }
+      if (!link && !video && !inq && !qerr) { box.style.display = 'none'; return; }
       box.style.display = 'block';
       const p = progress[art.id] || {};
       const items = [`${p.view ? '✅' : '⬜'} Xem tranh`];
@@ -1355,11 +1361,18 @@
       } else if (link) {
         items.push(`${p.done ? '✅' : (p.quiz ? '🟡' : '⬜')} Làm bài tập${p.quiz && !p.done ? ' (đã mở: làm xong rồi bấm nút báo bên dưới)' : ''}`);
       }
-      $('task-list').innerHTML = items.map((t) => `<li>${t}</li>`).join('');   // chuỗi cố định, an toàn
+      if (qerr && !inq) items.push('⚠ Chưa tải được bài tập của tranh này. Bấm "Tải lại bài tập" bên dưới. (Lỗi: ' + qerr.replace(/[&<>"]/g, '') + ')');
+      $('task-list').innerHTML = items.map((t) => `<li>${t}</li>`).join('');   // chuỗi cố định (lỗi đã bỏ ký tự đặc biệt)
       $('btn-video').style.display = video ? 'block' : 'none';
-      $('btn-inquiz').style.display = inq ? 'block' : 'none';
-      $('btn-inquiz').textContent = isTeacherLoggedIn ? `👁 Xem trước bài tập (${art.quizCount} câu)`
+      $('btn-inquiz').style.display = (inq || qerr) ? 'block' : 'none';
+      $('btn-inquiz').textContent = (qerr && !inq) ? '🔄 Tải lại bài tập' : isTeacherLoggedIn ? `👁 Xem trước bài tập (${art.quizCount} câu)`
         : (p.revealed ? '👁 Xem lại kết quả bài tập' : (p.done ? '🔁 Làm lại bài tập' : `📝 Làm bài tập ngay (${art.quizCount} câu)`));
+      const fab = $('quiz-fab');
+      if (art === currentSelectedArtwork && (inq || qerr) && !isTeacherLoggedIn) {
+        fab.textContent = $('btn-inquiz').textContent;
+        fab.style.display = 'block';
+        fab.classList.toggle('pulse', !(p.done || p.revealed) && !isTeacherLoggedIn);
+      } else if (art === currentSelectedArtwork) fab.style.display = 'none';
       $('btn-quiz').style.display = link ? 'block' : 'none';
       $('btn-quiz').textContent = inq ? '🔗 Bài tập thêm (mở link)' : '📝 Làm bài tập (mở link)';
       $('btn-done').style.display = (!inq && link && p.quiz && !p.done && !isTeacherLoggedIn) ? 'block' : 'none';
@@ -1399,14 +1412,27 @@
 
     // Mỗi lần mở tranh, đọc lại dữ liệu mới nhất từ Supabase. Nhờ vậy học sinh đang ở trong phòng
     // vẫn thấy link video / bài tập giáo viên vừa thêm mà không cần tải lại trang.
-    async function refreshArtworkFromServer(info) {
+    // Hỏi máy chủ tranh này có bao nhiêu câu hỏi. Nếu lỗi thì hiện rõ lỗi trong khung nhiệm vụ (không im lặng nữa).
+    async function refreshQuizCount(info) {
       try {
         const qc = await supabase.rpc('quiz_counts');
-        if (qc && qc.data && typeof qc.data === 'object') {
+        if (qc.error) throw new Error(qc.error.message || 'lỗi không rõ');
+        if (qc.data && typeof qc.data === 'object') {
+          quizCounts = qc.data;
           info.quizCount = Number(qc.data[String(info.id)]) || 0;
-          if (currentSelectedArtwork === info) renderTasks(info);
-          refreshBadgeFor(info);
         }
+        info.quizErr = '';
+      } catch (e) {
+        info.quizErr = String((e && e.message) || e);
+        console.warn('Không tải được số câu hỏi:', info.quizErr);
+      }
+      if (currentSelectedArtwork === info) renderTasks(info);
+      refreshBadgeFor(info);
+    }
+
+    async function refreshArtworkFromServer(info) {
+      try {
+        await refreshQuizCount(info);
         const { data, error } = await supabase.from('artworks')
           .select('title, author, description, image_url, quiz_url, video_url, status')
           .eq('id', info.id).maybeSingle();
@@ -1479,6 +1505,7 @@
 
         $('modal').style.display = 'flex';
         if (!isTeacherLoggedIn) refreshArtworkFromServer(info);   // lấy link mới nhất giáo viên vừa lưu
+        else refreshQuizCount(info);
       }
     }
 
@@ -1744,6 +1771,7 @@
     window.openInQuiz = async () => {
       const art = currentSelectedArtwork;
       if (!art) return;
+      if (art.quizErr && !(art.quizCount > 0)) { await refreshQuizCount(art); return; }
       let questions = [];
       const preview = isTeacherLoggedIn;
       if (preview) {
@@ -2045,6 +2073,7 @@
     window.closeModal = () => {
       const art = currentSelectedArtwork;
       $('modal').style.display = 'none';
+      $('quiz-fab').style.display = 'none';
       resetVideo();
       currentSelectedArtwork = null;
       // Nhắc học sinh làm bài tập nếu tranh có bài mà chưa mở
