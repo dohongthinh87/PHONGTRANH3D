@@ -235,11 +235,14 @@
     .tabs button { padding: 7px 14px; border: 0; border-radius: 6px 6px 0 0; cursor: pointer; font-weight: 600; background: #e3e6ea; }
     .tabs button.active { background: #1a73e8; color: #fff; }
 
-    @media (max-width: 768px) {
-      .modal-content { flex-direction: column; max-height: 90vh; overflow-y: auto; }
-      .modal-img-box { width: 100%; }
+    @media (max-width: 768px), (max-height: 520px) {
+      #modal { align-items: flex-start; padding: 10px; }
+      .modal-content { flex-direction: column; flex-wrap: nowrap; max-height: 94vh; max-height: calc(100dvh - 20px); overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; margin: auto 0; }
+      /* Điện thoại: chỉ MỘT vùng cuộn (cả khung), các phần không bị bóp nhỏ nên mô tả, video, bài tập luôn thấy đủ khi cuộn */
+      .modal-img-box { width: 100%; min-width: 0; flex-shrink: 0; padding: 10px; }
       .modal-img { height: 200px; }
-      .modal-info { width: 100%; max-height: none; }
+      .modal-info { width: 100%; max-height: none; overflow: visible; flex-shrink: 0; padding: 18px; }
+      .modal-content { padding-bottom: 80px; box-sizing: border-box; }   /* chừa chỗ cho nút nổi "Làm bài tập" */
       #hud { font-size: 11px; padding: 8px 10px; max-width: 180px; }
       table.vt { font-size: 12px; }
     }
