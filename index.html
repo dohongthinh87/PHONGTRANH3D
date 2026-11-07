@@ -212,11 +212,6 @@
     #quiz-retry { background: #f59f00; color: #fff; }
     #quiz-reveal { background: #7b1fa2; color: #fff; }
     #btn-inquiz { background: #1a73e8; }
-    /* Nút nổi: luôn thấy được trên điện thoại, không phải cuộn xuống cuối khung tranh */
-    #quiz-fab { display: none; position: fixed; left: 50%; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); z-index: 105;
-      padding: 14px 22px; border: 0; border-radius: 30px; background: #1a73e8; color: #fff; font-size: 16px; font-weight: 800; box-shadow: 0 6px 20px rgba(0,0,0,.45); cursor: pointer; white-space: nowrap; max-width: calc(100vw - 24px); }
-    #quiz-fab.pulse { animation: fabpulse 1.6s ease-in-out infinite; }
-    @keyframes fabpulse { 0%,100% { box-shadow: 0 6px 20px rgba(0,0,0,.45), 0 0 0 0 rgba(26,115,232,.7); } 50% { box-shadow: 0 6px 20px rgba(0,0,0,.45), 0 0 0 12px rgba(26,115,232,0); } }
     .qe-card { border: 1px solid #d5d9de; border-radius: 10px; padding: 12px; margin-bottom: 12px; background: #fafbfc; }
     .qe-card textarea, .qe-card input[type=text] { width: 100%; box-sizing: border-box; padding: 8px; border: 1px solid #ccc; border-radius: 6px; font: inherit; font-size: 13px; margin-bottom: 6px; }
     .qe-head { display: flex; justify-content: space-between; align-items: center; font-weight: 700; margin-bottom: 6px; }
@@ -242,7 +237,6 @@
       .modal-img-box { width: 100%; min-width: 0; flex-shrink: 0; padding: 10px; }
       .modal-img { height: 200px; }
       .modal-info { width: 100%; max-height: none; overflow: visible; flex-shrink: 0; padding: 18px; }
-      .modal-content { padding-bottom: 80px; box-sizing: border-box; }   /* chừa chỗ cho nút nổi "Làm bài tập" */
       #hud { font-size: 11px; padding: 8px 10px; max-width: 180px; }
       table.vt { font-size: 12px; }
     }
@@ -250,11 +244,13 @@
 </head>
 <body>
 
-  <div id="hud">
-    <b>PHÒNG TRANH 3D SÁNG TẠO</b><br>
-    • Di chuyển: W,A,S,D hoặc phím ảo<br>
-    • Xoay góc nhìn: Kéo/Vuốt màn hình<br>
-    • Click vào tranh để xem chi tiết
+  <div id="hud" style="display:none">
+    <div id="hud-guide" style="display:none">
+      <b>PHÒNG TRANH 3D SÁNG TẠO</b><br>
+      • Di chuyển: W,A,S,D hoặc phím ảo<br>
+      • Xoay góc nhìn: Kéo/Vuốt màn hình<br>
+      • Click vào tranh để xem chi tiết
+    </div>
     <div id="hud-progress" style="display:none; color:#7cfc9a; margin-top:4px;"></div>
     <div id="hud-teacher" style="display:none; color:#ffc107; margin-top:4px;">★ Chế độ giáo viên: click vào bất kỳ tranh nào để chỉnh sửa</div>
   </div>
@@ -263,7 +259,6 @@
   <button id="visits-btn" onclick="openVisits()">📊 Nhật ký học sinh</button>
   <button id="roster-btn" onclick="openRoster()">👥 Học sinh và mã số</button>
 
-  <button id="quiz-fab" onclick="openInQuiz()"></button>
   <div id="crosshair"></div>
   <div id="toast-wrap"></div>
 
@@ -502,7 +497,7 @@
 
     const $ = (id) => document.getElementById(id);
     const TZ = 'Asia/Ho_Chi_Minh';
-    const inUI = (t) => !!(t && t.closest && t.closest('#mobile-controls, #modal, #teacher-login-btn, #visits-btn, #roster-btn, #quiz-fab, #login-modal, #welcome-modal, #visits-modal, #roster-modal, #quiz-modal, #qedit-modal'));
+    const inUI = (t) => !!(t && t.closest && t.closest('#mobile-controls, #modal, #teacher-login-btn, #visits-btn, #roster-btn, #login-modal, #welcome-modal, #visits-modal, #roster-modal, #quiz-modal, #qedit-modal'));
     const isTyping = (e) => ['INPUT', 'TEXTAREA'].includes(e.target.tagName);
 
     // ---------- Tiện ích ----------
@@ -561,14 +556,19 @@
     let progress = {};        // { [idTranh]: { view, video, quiz } }
     let isTeacherLoggedIn = false;
 
+    // Khung góc trên bên trái: giáo viên thấy hướng dẫn; học sinh chỉ thấy tiến độ bài tập (không có tiến độ thì ẩn hẳn)
+    function updateHudVisibility() {
+      $('hud-guide').style.display = isTeacherLoggedIn ? 'block' : 'none';
+      $('hud').style.display = (isTeacherLoggedIn || $('hud-progress').style.display === 'block') ? 'block' : 'none';
+    }
     function updateProgressHud() {
       const el = $('hud-progress');
-      if (isTeacherLoggedIn || !visitId) { el.style.display = 'none'; return; }
       const withQuiz = artworkMeshes.filter((m) => safeUrl(m.userData.quizUrl) || m.userData.quizCount > 0);
-      if (!withQuiz.length) { el.style.display = 'none'; return; }
+      if (isTeacherLoggedIn || !visitId || !withQuiz.length) { el.style.display = 'none'; updateHudVisibility(); return; }
       const done = withQuiz.filter((m) => (progress[m.userData.id] || {}).done).length;
       el.style.display = 'block';
       el.textContent = `✅ Bài tập đã hoàn thành: ${done}/${withQuiz.length}`;
+      updateHudVisibility();
     }
 
     // Ghi một hành động (xem tranh / xem video / mở bài tập), mỗi loại một lần cho mỗi tranh
@@ -699,6 +699,7 @@
       btn.innerText = on ? '🔓 Đang ở chế độ Giáo viên' : '🔒 Giáo viên Quản trị';
       btn.classList.toggle('logged-in', on);
       $('hud-teacher').style.display = on ? 'block' : 'none';
+      updateHudVisibility();
       $('visits-btn').style.display = on ? 'block' : 'none';
       $('roster-btn').style.display = on ? 'block' : 'none';
       if (on) {
@@ -1360,7 +1361,6 @@
       if (video) items.push(`${p.video ? '✅' : '⬜'} Xem video`);
       if (inq) {
         items.push(`${p.done ? '✅' : (p.quiz ? '🟡' : '⬜')} Làm bài tập trắc nghiệm (${art.quizCount} câu)`);
-        if (link) items.push(`${p.extra ? '✅' : '⬜'} Bài tập thêm (mở link)`);
       } else if (link) {
         items.push(`${p.done ? '✅' : (p.quiz ? '🟡' : '⬜')} Làm bài tập${p.quiz && !p.done ? ' (đã mở: làm xong rồi bấm nút báo bên dưới)' : ''}`);
       }
@@ -1370,14 +1370,9 @@
       $('btn-inquiz').style.display = (inq || qerr) ? 'block' : 'none';
       $('btn-inquiz').textContent = (qerr && !inq) ? '🔄 Tải lại bài tập' : isTeacherLoggedIn ? `👁 Xem trước bài tập (${art.quizCount} câu)`
         : (p.revealed ? '👁 Xem lại kết quả bài tập' : (p.done ? '🔁 Làm lại bài tập' : `📝 Làm bài tập ngay (${art.quizCount} câu)`));
-      const fab = $('quiz-fab');
-      if (art === currentSelectedArtwork && (inq || qerr) && !isTeacherLoggedIn) {
-        fab.textContent = $('btn-inquiz').textContent;
-        fab.style.display = 'block';
-        fab.classList.toggle('pulse', !(p.done || p.revealed) && !isTeacherLoggedIn);
-      } else if (art === currentSelectedArtwork) fab.style.display = 'none';
-      $('btn-quiz').style.display = link ? 'block' : 'none';
-      $('btn-quiz').textContent = inq ? '🔗 Bài tập thêm (mở link)' : '📝 Làm bài tập (mở link)';
+      // Chỉ MỘT nút làm bài: có câu hỏi trong phòng thì dùng nút đó, ngược lại mới dùng nút mở link ngoài
+      $('btn-quiz').style.display = (link && !inq) ? 'block' : 'none';
+      $('btn-quiz').textContent = '📝 Làm bài tập (mở link)';
       $('btn-done').style.display = (!inq && link && p.quiz && !p.done && !isTeacherLoggedIn) ? 'block' : 'none';
     }
 
@@ -2076,7 +2071,6 @@
     window.closeModal = () => {
       const art = currentSelectedArtwork;
       $('modal').style.display = 'none';
-      $('quiz-fab').style.display = 'none';
       resetVideo();
       currentSelectedArtwork = null;
       // Nhắc học sinh làm bài tập nếu tranh có bài mà chưa mở
