@@ -183,6 +183,52 @@
     .code-row button { padding: 7px 12px; border: 0; border-radius: 6px; cursor: pointer; font-weight: 600; background: #1a73e8; color: #fff; }
     #btn-done { background: #f59f00; }
 
+    /* ---- Bài tập trắc nghiệm ---- */
+    #quiz-modal, #qedit-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.88); z-index: 120; justify-content: center; align-items: center; padding: 15px; }
+    #qedit-modal { z-index: 125; }
+    .quiz-box { background: #fff; color: #222; width: 100%; max-width: 700px; max-height: 92vh; overflow: auto; border-radius: 12px; padding: 20px 22px; box-shadow: 0 15px 40px rgba(0,0,0,.5); user-select: text; -webkit-user-select: text; }
+    .quiz-box h3 { margin: 0 0 4px; color: #1a73e8; }
+    .quiz-sub { color: #555; font-size: 13px; margin-bottom: 12px; line-height: 1.5; }
+    .quiz-progress { height: 6px; background: #e3e6ea; border-radius: 3px; overflow: hidden; margin-bottom: 12px; }
+    .quiz-progress > div { height: 100%; background: #1a73e8; width: 0; transition: width .2s; }
+    .quiz-score { font-size: 20px; font-weight: 800; text-align: center; padding: 12px; border-radius: 10px; margin-bottom: 12px; background: #e8f0fe; color: #174ea6; line-height: 1.4; }
+    .quiz-score small { display: block; font-size: 13px; font-weight: 400; margin-top: 2px; }
+    .q-card { border: 1px solid #e0e3e7; border-radius: 10px; padding: 12px 14px; margin-bottom: 12px; }
+    .q-card.right { border-color: #34a853; background: #f1faf4; }
+    .q-card.wrong { border-color: #ea4335; background: #fdf2f1; }
+    .q-text { font-weight: 600; margin-bottom: 8px; line-height: 1.5; }
+    .q-opt { display: flex; gap: 8px; align-items: flex-start; padding: 8px 10px; border: 1px solid #d5d9de; border-radius: 8px; margin-bottom: 6px; cursor: pointer; font-size: 14px; line-height: 1.4; background: #fff; }
+    .q-opt:hover { border-color: #1a73e8; }
+    .q-opt input { margin-top: 3px; }
+    .q-opt.sel { border-color: #1a73e8; background: #e8f0fe; }
+    .q-opt.ok { border-color: #34a853; background: #e6f4ea; }
+    .q-opt.bad { border-color: #ea4335; background: #fce8e6; }
+    .q-opt.locked { cursor: default; }
+    .q-explain { font-size: 13px; color: #444; margin-top: 6px; line-height: 1.5; }
+    .quiz-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+    .quiz-actions button { flex: 1; min-width: 120px; padding: 11px; border: 0; border-radius: 8px; font-weight: 700; cursor: pointer; font-size: 14px; background: #e3e6ea; color: #222; }
+    .quiz-actions button:disabled { background: #9aa5a0; color: #fff; cursor: not-allowed; }
+    #quiz-submit, #qe-save { background: #1a73e8; color: #fff; }
+    #quiz-retry { background: #f59f00; color: #fff; }
+    #btn-inquiz { background: #1a73e8; }
+    .qe-card { border: 1px solid #d5d9de; border-radius: 10px; padding: 12px; margin-bottom: 12px; background: #fafbfc; }
+    .qe-card textarea, .qe-card input[type=text] { width: 100%; box-sizing: border-box; padding: 8px; border: 1px solid #ccc; border-radius: 6px; font: inherit; font-size: 13px; margin-bottom: 6px; }
+    .qe-head { display: flex; justify-content: space-between; align-items: center; font-weight: 700; margin-bottom: 6px; }
+    .qe-head button { border: 0; background: #fce8e6; color: #d93025; border-radius: 6px; padding: 4px 8px; cursor: pointer; font-weight: 600; }
+    .qe-opt { display: flex; align-items: center; gap: 8px; }
+    .qe-opt input[type=text] { flex: 1; }
+    .qe-opt input[type=radio] { width: auto; margin: 0 0 6px; }
+    .qe-hint { font-size: 12px; color: #666; margin: 0 0 6px; }
+    details.qe-paste { background: #f6f9ff; border: 1px solid #d6e4ff; border-radius: 8px; padding: 8px 12px; margin-bottom: 12px; font-size: 13px; }
+    details.qe-paste textarea { width: 100%; box-sizing: border-box; padding: 8px; border: 1px solid #ccc; border-radius: 6px; font: inherit; font-size: 13px; margin: 6px 0; }
+    details.qe-paste pre { background: #fff; border: 1px solid #e0e3e7; border-radius: 6px; padding: 8px; font-size: 12px; white-space: pre-wrap; margin: 6px 0; }
+    details.qe-paste button { padding: 7px 12px; border: 0; border-radius: 6px; cursor: pointer; font-weight: 600; background: #1a73e8; color: #fff; }
+    #qe-status { margin-top: 8px; font-size: 13px; min-height: 16px; line-height: 1.5; }
+    #qe-status.ok { color: #137333; } #qe-status.err { color: #d93025; }
+    .tabs { display: flex; gap: 6px; margin: 6px 0 10px; }
+    .tabs button { padding: 7px 14px; border: 0; border-radius: 6px 6px 0 0; cursor: pointer; font-weight: 600; background: #e3e6ea; }
+    .tabs button.active { background: #1a73e8; color: #fff; }
+
     @media (max-width: 768px) {
       .modal-content { flex-direction: column; max-height: 90vh; overflow-y: auto; }
       .modal-img-box { width: 100%; }
@@ -257,6 +303,11 @@
           <button id="visits-close">Đóng</button>
         </div>
       </div>
+      <div class="tabs">
+        <button id="tab-btn-visits" class="active">📊 Lượt vào phòng</button>
+        <button id="tab-btn-results">📝 Kết quả bài tập</button>
+      </div>
+      <div id="tab-visits">
       <div class="visits-tools">
         <button id="visits-notify">🔔 Bật thông báo trình duyệt</button>
         <button id="visits-csv">⬇ Xuất file Excel (CSV)</button>
@@ -269,6 +320,56 @@
         </thead>
         <tbody id="visits-body"></tbody>
       </table>
+      </div>
+      <div id="tab-results" style="display:none">
+        <div class="visits-tools">
+          <button id="results-csv">⬇ Xuất kết quả (CSV)</button>
+        </div>
+        <div id="results-summary"></div>
+        <table class="vt">
+          <thead><tr><th>Học sinh</th><th>Mã số</th><th>Lớp</th><th>Tranh</th><th>Điểm tốt nhất</th><th>Tỉ lệ</th><th>Số lần làm</th><th>Lần gần nhất</th></tr></thead>
+          <tbody id="results-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Làm bài tập trắc nghiệm (học sinh; giáo viên xem trước) -->
+  <div id="quiz-modal">
+    <div class="quiz-box">
+      <h3 id="quiz-title">📝 Bài tập</h3>
+      <div class="quiz-sub" id="quiz-sub"></div>
+      <div class="quiz-progress"><div id="quiz-bar"></div></div>
+      <div id="quiz-score" class="quiz-score" style="display:none"></div>
+      <div id="quiz-body"></div>
+      <div class="err-text" id="quiz-error" role="alert"></div>
+      <div class="quiz-actions">
+        <button id="quiz-submit" disabled>✅ Nộp bài</button>
+        <button id="quiz-retry" style="display:none">🔁 Làm lại</button>
+        <button id="quiz-close">Đóng</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Soạn câu hỏi (chỉ giáo viên) -->
+  <div id="qedit-modal">
+    <div class="quiz-box">
+      <h3 id="qe-title">📝 Soạn câu hỏi bài tập</h3>
+      <div class="quiz-sub">Mỗi câu có 2 đến 4 đáp án và một đáp án đúng; tối đa 20 câu cho mỗi tranh. Học sinh không nhìn thấy đáp án đúng trước khi nộp bài, hệ thống tự chấm điểm.</div>
+      <details class="qe-paste">
+        <summary><b>📋 Dán nhanh nhiều câu hỏi</b> (soạn sẵn trong Word rồi dán vào)</summary>
+        <div class="qe-hint">Các câu cách nhau một dòng trống. Dòng đầu là câu hỏi, tiếp theo là các đáp án A. B. C. D. Đánh dấu đáp án đúng bằng dấu * ở đầu dòng (hoặc thêm dòng "Đáp án: B"). Dòng "Giải thích: ..." là tùy chọn. Ví dụ:</div>
+        <pre id="qe-example"></pre>
+        <textarea id="qe-paste" rows="8" placeholder="Dán nội dung câu hỏi vào đây..."></textarea>
+        <button id="qe-paste-add" type="button">➕ Thêm vào danh sách bên dưới</button>
+      </details>
+      <div id="qe-list"></div>
+      <div class="quiz-actions">
+        <button id="qe-add" type="button">➕ Thêm câu hỏi</button>
+        <button id="qe-save" type="button">💾 Lưu câu hỏi</button>
+        <button id="qe-close" type="button">Đóng</button>
+      </div>
+      <div id="qe-status" role="status" aria-live="polite"></div>
     </div>
   </div>
 
@@ -326,6 +427,7 @@
           <p class="hint">Sau khi xem tranh, hãy xem video (nếu có) và làm bài tập. Làm xong, quay lại phòng tranh để xem tranh tiếp theo.</p>
           <div class="task-actions">
             <button id="btn-video" onclick="playVideo()">▶ Xem video</button>
+            <button id="btn-inquiz" onclick="openInQuiz()" style="display:none">📝 Làm bài tập ngay</button>
             <button id="btn-quiz" onclick="openQuiz()">📝 Làm bài tập</button>
             <button id="btn-done" onclick="markDone()" style="display:none">✅ Em đã làm xong bài tập</button>
           </div>
@@ -348,6 +450,7 @@
           <label for="edit-quiz" style="font-size:12px; font-weight:bold; color:#28a745;">📝 Link bài tập / Quiz (bỏ trống nếu không có):</label>
           <input type="text" id="edit-quiz" maxlength="300" placeholder="https://forms.gle/... hoặc link Quizizz, Wayground...">
 
+          <button class="save-btn" id="btn-qedit" type="button" onclick="openQuizEditor()" style="background:#7b1fa2">📝 Soạn câu hỏi bài tập cho tranh này (<span id="qcount">0</span> câu)</button>
           <button class="save-btn" id="save-btn" onclick="saveTeacherChanges()">💾 Lưu thay đổi lên hệ thống</button>
           <button class="remove-btn" id="remove-btn" onclick="removeArtwork()">🗑️ Gỡ bỏ tranh này (không phù hợp)</button>
           <div id="teacher-status" role="status" aria-live="polite"></div>
@@ -388,7 +491,7 @@
 
     const $ = (id) => document.getElementById(id);
     const TZ = 'Asia/Ho_Chi_Minh';
-    const inUI = (t) => !!(t && t.closest && t.closest('#mobile-controls, #modal, #teacher-login-btn, #visits-btn, #roster-btn, #login-modal, #welcome-modal, #visits-modal, #roster-modal'));
+    const inUI = (t) => !!(t && t.closest && t.closest('#mobile-controls, #modal, #teacher-login-btn, #visits-btn, #roster-btn, #login-modal, #welcome-modal, #visits-modal, #roster-modal, #quiz-modal, #qedit-modal'));
     const isTyping = (e) => ['INPUT', 'TEXTAREA'].includes(e.target.tagName);
 
     // ---------- Tiện ích ----------
@@ -450,7 +553,7 @@
     function updateProgressHud() {
       const el = $('hud-progress');
       if (isTeacherLoggedIn || !visitId) { el.style.display = 'none'; return; }
-      const withQuiz = artworkMeshes.filter((m) => safeUrl(m.userData.quizUrl));
+      const withQuiz = artworkMeshes.filter((m) => safeUrl(m.userData.quizUrl) || m.userData.quizCount > 0);
       if (!withQuiz.length) { el.style.display = 'none'; return; }
       const done = withQuiz.filter((m) => (progress[m.userData.id] || {}).done).length;
       el.style.display = 'block';
@@ -721,7 +824,7 @@
       $('visits-modal').style.display = 'flex';
       resetUnread();
       startVisitsTimer();
-      await loadVisits();
+      showTab('visits');
     };
 
     // Xuất CSV (mở được bằng Excel). Chống "CSV injection" vì tên do học sinh tự gõ.
@@ -767,7 +870,56 @@
         ? '🔔 Đã bật. Giữ tab này mở (có thể ở nền) để nhận thông báo khi có học sinh vào.'
         : 'Chưa bật được thông báo (trình duyệt đang chặn).');
     });
-    $('visits-refresh').addEventListener('click', loadVisits);
+    let activeTab = 'visits';
+    function showTab(t) {
+      activeTab = t;
+      $('tab-visits').style.display = t === 'visits' ? 'block' : 'none';
+      $('tab-results').style.display = t === 'results' ? 'block' : 'none';
+      $('tab-btn-visits').classList.toggle('active', t === 'visits');
+      $('tab-btn-results').classList.toggle('active', t === 'results');
+      if (t === 'results') loadResults(); else loadVisits();
+    }
+    $('tab-btn-visits').addEventListener('click', () => showTab('visits'));
+    $('tab-btn-results').addEventListener('click', () => showTab('results'));
+    $('visits-refresh').addEventListener('click', () => (activeTab === 'results' ? loadResults() : loadVisits()));
+
+    // Kết quả làm bài trắc nghiệm: điểm tốt nhất của từng học sinh ở từng tranh
+    let lastResults = [];
+    const titleOfArt = (id) => { const m = artworkMeshes.find((x) => x.userData.id === id); return m ? m.userData.title : ''; };
+    async function loadResults() {
+      const body = $('results-body');
+      body.innerHTML = '';
+      $('results-summary').textContent = 'Đang tải...';
+      const { data, error } = await supabase.from('quiz_results').select('*');
+      if (error) { $('results-summary').textContent = 'Lỗi tải kết quả: ' + error.message + ' (bạn đã chạy file supabase_quiz_builder.sql chưa?)'; return; }
+      lastResults = data.sort((a, b) =>
+        (a.class_name || '').localeCompare(b.class_name || '', 'vi', { numeric: true }) ||
+        (a.full_name || '').localeCompare(b.full_name || '', 'vi') || a.artwork_id - b.artwork_id);
+      const avg = data.length ? Math.round(data.reduce((t, r) => t + (r.total ? r.best_score / r.total : 0), 0) / data.length * 100) : 0;
+      $('results-summary').textContent = data.length
+        ? `${data.length} kết quả (mỗi dòng là điểm tốt nhất của một học sinh ở một tranh) · điểm trung bình ${avg}%.`
+        : 'Chưa có học sinh nào làm bài tập trắc nghiệm.';
+      lastResults.forEach((r) => {
+        const pct = r.total ? Math.round(r.best_score / r.total * 100) : 0;
+        const tr = document.createElement('tr');
+        tr.append(cell(r.full_name || '(đã xóa)'), cell(r.student_code || ''), cell(r.class_name || ''),
+          cell(`#${r.artwork_id}${titleOfArt(r.artwork_id) ? ' · ' + titleOfArt(r.artwork_id) : ''}`),
+          cell(`${r.best_score}/${r.total}`), cell(pct + '%'), cell(r.attempts), cell(fmtDateTime(r.last_attempt)));
+        body.appendChild(tr);
+      });
+    }
+    $('results-csv').addEventListener('click', () => {
+      if (!lastResults.length) { showToast('Chưa có kết quả để xuất.'); return; }
+      const lines = [['Học sinh', 'Mã số', 'Lớp', 'Tranh', 'Tên tranh', 'Điểm tốt nhất', 'Tổng số câu', 'Tỉ lệ (%)', 'Số lần làm', 'Lần gần nhất'].map(csvCell).join(',')];
+      lastResults.forEach((r) => lines.push([r.full_name || '', r.student_code || '', r.class_name || '', r.artwork_id, titleOfArt(r.artwork_id),
+        r.best_score, r.total, r.total ? Math.round(r.best_score / r.total * 100) : 0, r.attempts, fmtDateTime(r.last_attempt)].map(csvCell).join(',')));
+      const blob = new Blob(['\uFEFF' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `ket-qua-bai-tap-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    });
     $('visits-close').addEventListener('click', () => { $('visits-modal').style.display = 'none'; });
 
     // ---------- Quản lý học sinh và mã số (giáo viên) ----------
@@ -961,6 +1113,7 @@
     texLoader.setCrossOrigin('anonymous');
     const materialsMap = new Map();
     const dynamicArtworksData = {};
+    let quizCounts = {};            // { [idTranh]: số câu hỏi trắc nghiệm }
 
     // Tải dữ liệu bài nộp từ Supabase
     async function fetchArtworksFromSupabase() {
@@ -977,6 +1130,10 @@
       } catch (e) {
         console.warn('Lỗi kết nối Supabase:', e);
       }
+      try {
+        const { data: qc } = await supabase.rpc('quiz_counts');
+        if (qc && typeof qc === 'object') quizCounts = qc;
+      } catch (e) { /* chưa có bài tập thì bỏ qua */ }
       buildGallery();
       updateProgressHud();
     }
@@ -1028,7 +1185,7 @@
         u.badge.material.map.dispose(); u.badge.material.dispose(); u.badge.geometry.dispose();
         u.badge = null;
       }
-      const hasVideo = !!safeUrl(u.videoUrl), hasQuiz = !!safeUrl(u.quizUrl);
+      const hasVideo = !!safeUrl(u.videoUrl), hasQuiz = !!safeUrl(u.quizUrl) || u.quizCount > 0;
       if (!hasVideo && !hasQuiz) return;
       const badge = new THREE.Mesh(
         new THREE.PlaneGeometry(0.62, 0.23),
@@ -1073,6 +1230,7 @@
         description: currentDesc,
         image: currentImage,
         quizUrl: dbItem.quiz_url || dataItem.quizUrl || '',
+        quizCount: Number(quizCounts[dataItem.id]) || 0,
         videoUrl: dbItem.video_url || dataItem.videoUrl || '',
         fallbackUrl: fallback.dataUrl,
         defaults: {
@@ -1180,19 +1338,30 @@
     function resetVideo() { $('video-wrap').innerHTML = ''; }
 
     // Hiện khung "Nhiệm vụ" (video + bài tập) của tranh
+    function hasAnyQuiz(art) { return (art.quizCount > 0) || !!safeUrl(art.quizUrl); }
+
     function renderTasks(art) {
-      const quiz = safeUrl(art.quizUrl), video = safeUrl(art.videoUrl);
+      const link = safeUrl(art.quizUrl), video = safeUrl(art.videoUrl), inq = art.quizCount > 0;
       const box = $('task-box');
-      if (!quiz && !video) { box.style.display = 'none'; return; }
+      if (!link && !video && !inq) { box.style.display = 'none'; return; }
       box.style.display = 'block';
       const p = progress[art.id] || {};
       const items = [`${p.view ? '✅' : '⬜'} Xem tranh`];
       if (video) items.push(`${p.video ? '✅' : '⬜'} Xem video`);
-      if (quiz) items.push(`${p.done ? '✅' : (p.quiz ? '🟡' : '⬜')} Làm bài tập${p.quiz && !p.done ? ' (đã mở: làm xong rồi bấm nút báo bên dưới)' : ''}`);
+      if (inq) {
+        items.push(`${p.done ? '✅' : (p.quiz ? '🟡' : '⬜')} Làm bài tập trắc nghiệm (${art.quizCount} câu)`);
+        if (link) items.push(`${p.extra ? '✅' : '⬜'} Bài tập thêm (mở link)`);
+      } else if (link) {
+        items.push(`${p.done ? '✅' : (p.quiz ? '🟡' : '⬜')} Làm bài tập${p.quiz && !p.done ? ' (đã mở: làm xong rồi bấm nút báo bên dưới)' : ''}`);
+      }
       $('task-list').innerHTML = items.map((t) => `<li>${t}</li>`).join('');   // chuỗi cố định, an toàn
       $('btn-video').style.display = video ? 'block' : 'none';
-      $('btn-quiz').style.display = quiz ? 'block' : 'none';
-      $('btn-done').style.display = (quiz && p.quiz && !p.done && !isTeacherLoggedIn) ? 'block' : 'none';
+      $('btn-inquiz').style.display = inq ? 'block' : 'none';
+      $('btn-inquiz').textContent = isTeacherLoggedIn ? `👁 Xem trước bài tập (${art.quizCount} câu)`
+        : (p.done ? '🔁 Làm lại bài tập' : `📝 Làm bài tập ngay (${art.quizCount} câu)`);
+      $('btn-quiz').style.display = link ? 'block' : 'none';
+      $('btn-quiz').textContent = inq ? '🔗 Bài tập thêm (mở link)' : '📝 Làm bài tập (mở link)';
+      $('btn-done').style.display = (!inq && link && p.quiz && !p.done && !isTeacherLoggedIn) ? 'block' : 'none';
     }
 
     window.playVideo = () => {
@@ -1222,7 +1391,8 @@
       const url = safeUrl(art.quizUrl);
       if (!url) return;
       window.open(url, '_blank', 'noopener');
-      trackEvent(art.id, 'quiz');
+      if (art.quizCount > 0) { (progress[art.id] || (progress[art.id] = {})).extra = true; store.set(PROGRESS_KEY, progress); }
+      else trackEvent(art.id, 'quiz');
       renderTasks(art);
     };
 
@@ -1230,6 +1400,12 @@
     // vẫn thấy link video / bài tập giáo viên vừa thêm mà không cần tải lại trang.
     async function refreshArtworkFromServer(info) {
       try {
+        const qc = await supabase.rpc('quiz_counts');
+        if (qc && qc.data && typeof qc.data === 'object') {
+          info.quizCount = Number(qc.data[String(info.id)]) || 0;
+          if (currentSelectedArtwork === info) renderTasks(info);
+          refreshBadgeFor(info);
+        }
         const { data, error } = await supabase.from('artworks')
           .select('title, author, description, image_url, quiz_url, video_url, status')
           .eq('id', info.id).maybeSingle();
@@ -1288,6 +1464,7 @@
         $('edit-desc').value = info.description || '';
         $('edit-video').value = info.videoUrl || '';
         $('edit-quiz').value = info.quizUrl || '';
+        $('qcount').textContent = info.quizCount || 0;
         setStatus('');
         resetVideo();
 
@@ -1435,7 +1612,7 @@
       const art = currentSelectedArtwork;
       if (!art) return;
       if (!isTeacherLoggedIn) { setStatus('Bạn cần đăng nhập giáo viên để gỡ tranh.', 'err'); return; }
-      if (!confirm(`Gỡ bỏ Tác phẩm #${art.id} ("${art.title}")?\n\nBài nộp sẽ bị xóa khỏi hệ thống và ô này sẽ trống để học sinh nộp lại.`)) return;
+      if (!confirm(`Gỡ bỏ Tác phẩm #${art.id} ("${art.title}")?\n\nBài nộp và các câu hỏi bài tập của tranh này sẽ bị xóa khỏi hệ thống; ô này sẽ trống để học sinh nộp lại.`)) return;
 
       $('remove-btn').disabled = true;
       setStatus('Đang gỡ tranh...', '');
@@ -1474,6 +1651,9 @@
         }
       } catch (e) { console.warn('Không xóa được file ảnh cũ:', e); }
 
+      // Câu hỏi bài tập gắn với tranh đã gỡ cũng được xóa
+      try { await supabase.from('quiz_questions').delete().eq('artwork_id', art.id); art.quizCount = 0; $('qcount').textContent = 0; } catch (e) { /* bỏ qua */ }
+
       // Trả tranh về nội dung mặc định trong data.js
       const d = art.defaults || {};
       art.title = d.title; art.author = d.author; art.description = d.description; art.image = d.image;
@@ -1504,6 +1684,310 @@
       setStatus(`✅ Đã gỡ Tác phẩm #${art.id}. Ô này đã trống để học sinh nộp lại.`, 'ok');
     };
 
+    // ---------- Làm bài tập trắc nghiệm ----------
+    // Học sinh: câu hỏi lấy qua hàm get_quiz (KHÔNG kèm đáp án), nộp bài qua submit_quiz để Supabase chấm điểm.
+    // Giáo viên: "xem trước" bằng cách đọc thẳng bảng câu hỏi, chấm trên máy và không lưu điểm.
+    let quizState = null;
+
+    function quizError(message) {
+      const m = String(message || '');
+      if (/invalid_visit|invalid_code/.test(m)) return 'Phiên vào phòng không còn hiệu lực. Hãy tải lại trang và nhập lại mã số.';
+      if (/too_many_attempts/.test(m)) return 'Em đã làm bài này quá nhiều lần. Hãy hỏi giáo viên.';
+      if (/no_questions/.test(m)) return 'Tranh này chưa có câu hỏi.';
+      return m;
+    }
+    function updateQuizProgress() {
+      if (!quizState) return;
+      const total = quizState.questions.length;
+      const done = Object.keys(quizState.answers).length;
+      $('quiz-bar').style.width = (quizState.submitted ? 100 : (done / total * 100)) + '%';
+      if (!quizState.submitted) {
+        $('quiz-submit').disabled = done < total;
+        $('quiz-submit').textContent = done < total ? `✅ Nộp bài (đã trả lời ${done}/${total})` : '✅ Nộp bài';
+      }
+    }
+    function renderQuiz() {
+      const { questions } = quizState;
+      $('quiz-title').textContent = '📝 Bài tập: ' + (quizState.art.title || ('Tranh #' + quizState.art.id));
+      $('quiz-sub').textContent = quizState.preview
+        ? '👁 Chế độ xem trước của giáo viên: điểm không được lưu.'
+        : 'Chọn một đáp án cho mỗi câu, rồi bấm "Nộp bài". Làm sai có thể làm lại.';
+      $('quiz-score').style.display = 'none';
+      $('quiz-error').textContent = '';
+      $('quiz-submit').style.display = ''; $('quiz-retry').style.display = 'none';
+      const body = $('quiz-body');
+      body.innerHTML = '';
+      questions.forEach((q, qi) => {
+        const card = document.createElement('div'); card.className = 'q-card'; card.dataset.qid = q.id;
+        const t = document.createElement('div'); t.className = 'q-text'; t.textContent = `Câu ${qi + 1}. ${q.question}`;
+        card.appendChild(t);
+        q.options.forEach((opt, oi) => {
+          const lab = document.createElement('label'); lab.className = 'q-opt';
+          const r = document.createElement('input'); r.type = 'radio'; r.name = 'qa' + q.id; r.value = String(oi);
+          const sp = document.createElement('span'); sp.textContent = `${'ABCD'[oi]}. ${opt}`;
+          r.addEventListener('change', () => {
+            quizState.answers[q.id] = oi;
+            card.querySelectorAll('.q-opt').forEach((l) => l.classList.remove('sel'));
+            lab.classList.add('sel');
+            updateQuizProgress();
+          });
+          lab.append(r, sp); card.appendChild(lab);
+        });
+        body.appendChild(card);
+      });
+      updateQuizProgress();
+    }
+
+    window.openInQuiz = async () => {
+      const art = currentSelectedArtwork;
+      if (!art) return;
+      let questions = [];
+      const preview = isTeacherLoggedIn;
+      if (preview) {
+        const { data, error } = await supabase.from('quiz_questions')
+          .select('id, question, options, correct, explanation').eq('artwork_id', art.id).order('sort_order');
+        if (error) { setStatus('Lỗi tải câu hỏi: ' + error.message, 'err'); return; }
+        questions = data;
+      } else {
+        if (!visitId) { showToast('Hãy nhập mã số để vào phòng trước nhé.'); return; }
+        const { data, error } = await supabase.rpc('get_quiz', { p_visit: visitId, p_artwork: art.id });
+        if (error) {
+          showToast('Không tải được bài tập: ' + quizError(error.message), 8000);
+          if (/invalid_visit/.test(error.message)) { store.set(VISIT_KEY, null); store.set(PROGRESS_KEY, null); }
+          return;
+        }
+        questions = data || [];
+      }
+      if (!questions.length) {
+        art.quizCount = 0; renderTasks(art); refreshBadgeFor(art);
+        showToast('Tranh này chưa có câu hỏi bài tập.');
+        return;
+      }
+      quizState = { art, questions, preview, answers: {}, submitted: false };
+      trackEvent(art.id, 'quiz');
+      renderQuiz();
+      $('quiz-modal').style.display = 'flex';
+      $('quiz-modal').querySelector('.quiz-box').scrollTop = 0;
+    };
+
+    function showQuizResult(result) {
+      quizState.submitted = true;
+      const { score, total } = result;
+      const pct = total ? score / total : 0;
+      const banner = $('quiz-score');
+      banner.style.display = 'block';
+      banner.textContent = `${pct >= 0.8 ? '🎉' : pct >= 0.5 ? '👍' : '💪'} Em đúng ${score}/${total} câu`;
+      const small = document.createElement('small');
+      small.textContent = quizState.preview ? 'Xem trước: điểm không được lưu.'
+        : (pct >= 0.8 ? 'Giỏi lắm! Hãy sang tranh tiếp theo nhé.' : 'Hãy xem đáp án bên dưới rồi bấm "Làm lại" để thử lần nữa.');
+      banner.appendChild(small);
+
+      const byId = new Map(result.results.map((r) => [r.id, r]));
+      $('quiz-body').querySelectorAll('.q-card').forEach((card) => {
+        const r = byId.get(Number(card.dataset.qid));
+        if (!r) return;
+        card.classList.add(r.is_correct ? 'right' : 'wrong');
+        card.querySelectorAll('.q-opt').forEach((lab, oi) => {
+          lab.classList.add('locked'); lab.classList.remove('sel');
+          lab.querySelector('input').disabled = true;
+          if (oi === r.correct_index) lab.classList.add('ok');
+          else if (oi === r.selected) lab.classList.add('bad');
+        });
+        const ex = document.createElement('div'); ex.className = 'q-explain';
+        ex.textContent = (r.is_correct ? '✅ Chính xác!' : (r.selected === null ? '⚠ Em chưa chọn đáp án.' : `❌ Chưa đúng. Đáp án đúng là ${'ABCD'[r.correct_index]}.`))
+          + (r.explanation ? ' ' + r.explanation : '');
+        card.appendChild(ex);
+      });
+      $('quiz-bar').style.width = '100%';
+      $('quiz-submit').style.display = 'none';
+      $('quiz-retry').style.display = '';
+      $('quiz-modal').querySelector('.quiz-box').scrollTop = 0;
+    }
+
+    $('quiz-submit').addEventListener('click', async () => {
+      if (!quizState || quizState.submitted) return;
+      const { art } = quizState;
+      $('quiz-submit').disabled = true;
+      $('quiz-error').textContent = '';
+      let result;
+      if (quizState.preview) {
+        let score = 0;
+        const results = quizState.questions.map((q) => {
+          const sel = quizState.answers[q.id] ?? null;
+          const ok = sel !== null && sel === q.correct;
+          if (ok) score++;
+          return { id: q.id, selected: sel, correct_index: q.correct, is_correct: ok, explanation: q.explanation };
+        });
+        result = { score, total: quizState.questions.length, results };
+      } else {
+        const { data, error } = await supabase.rpc('submit_quiz', { p_visit: visitId, p_artwork: art.id, p_answers: quizState.answers });
+        if (error) { $('quiz-error').textContent = 'Không nộp được bài: ' + quizError(error.message); $('quiz-submit').disabled = false; return; }
+        result = data;
+      }
+      showQuizResult(result);
+      if (!quizState.preview) {            // nộp bài = hoàn thành bài tập của tranh này
+        trackEvent(art.id, 'done');
+        renderTasks(art);
+        if (art === currentSelectedArtwork) { /* giữ nguyên hộp tranh phía sau */ }
+      }
+    });
+    $('quiz-retry').addEventListener('click', () => window.openInQuiz());
+    $('quiz-close').addEventListener('click', () => { $('quiz-modal').style.display = 'none'; quizState = null; });
+
+    // ---------- Soạn câu hỏi (giáo viên) ----------
+    let qe = { art: null, items: [] };
+    const blankQ = () => ({ question: '', options: ['', '', '', ''], correct: 0, explanation: '' });
+    function qeStatus(msg, kind) { $('qe-status').textContent = msg || ''; $('qe-status').className = kind || ''; }
+
+    $('qe-example').textContent = [
+      'Câu 1. Ai là tác giả bức tranh này?',
+      'A. Van Gogh',
+      '*B. Monet',
+      'C. Picasso',
+      'Giải thích: Đây là tranh của Monet.',
+      '',
+      'Bức tranh dùng màu chủ đạo nào?',
+      'A. Xanh',
+      'B. Đỏ',
+      'C. Vàng',
+      'Đáp án: C'
+    ].join('\n');
+
+    // Đọc văn bản dán vào thành danh sách câu hỏi
+    function parseQuizText(text) {
+      const blocks = String(text || '').replace(/\r/g, '').split(/\n\s*\n+/).map((b) => b.trim()).filter(Boolean);
+      const items = [], errors = [];
+      blocks.forEach((block, bi) => {
+        const lines = block.split('\n').map((l) => l.trim()).filter(Boolean);
+        const optRe = /^(\*?)\s*([A-Da-d])\s*[.)]\s*(.*?)\s*(\*?)$/;
+        let question = '', opts = [], correct = -1, explanation = '', letter = null;
+        lines.forEach((l) => {
+          let m;
+          if ((m = l.match(/^giải thích\s*[:：-]\s*(.+)$/i))) { explanation = m[1].trim(); return; }
+          if ((m = l.match(/^đáp án(?:\s*đúng)?\s*[:：-]\s*\*?\s*([A-Da-d])\b/i))) { letter = m[1].toUpperCase(); return; }
+          if ((m = l.match(optRe)) && m[3] && 'ABCD'.indexOf(m[2].toUpperCase()) === opts.length) {
+            opts.push(m[3].trim());
+            if (m[1] === '*' || m[4] === '*') correct = opts.length - 1;
+            return;
+          }
+          if (!opts.length) question += (question ? ' ' : '') + l;
+          else opts[opts.length - 1] += ' ' + l;
+        });
+        question = question.replace(/^(câu\s*)?\d+\s*[.:)]\s*/i, '').trim();
+        if (letter) correct = 'ABCD'.indexOf(letter);
+        const n = bi + 1;
+        if (!question) errors.push(`Khối ${n}: thiếu nội dung câu hỏi.`);
+        else if (opts.length < 2) errors.push(`Câu "${question.slice(0, 30)}…": cần ít nhất 2 đáp án (A. B. ...).`);
+        else if (correct < 0 || correct >= opts.length) errors.push(`Câu "${question.slice(0, 30)}…": chưa đánh dấu đáp án đúng (dùng * trước đáp án, hoặc dòng "Đáp án: B").`);
+        else items.push({ question, options: [...opts, '', '', ''].slice(0, 4), correct, explanation });
+      });
+      return { items, errors };
+    }
+
+    function renderEditor() {
+      const list = $('qe-list');
+      list.innerHTML = '';
+      qe.items.forEach((it, qi) => {
+        const card = document.createElement('div'); card.className = 'qe-card';
+        const head = document.createElement('div'); head.className = 'qe-head';
+        const h = document.createElement('span'); h.textContent = `Câu ${qi + 1}`;
+        const del = document.createElement('button'); del.type = 'button'; del.textContent = '🗑 Xóa câu này';
+        del.addEventListener('click', () => { qe.items.splice(qi, 1); renderEditor(); });
+        head.append(h, del);
+        const ta = document.createElement('textarea'); ta.rows = 2; ta.maxLength = 300; ta.placeholder = 'Nội dung câu hỏi';
+        ta.value = it.question; ta.addEventListener('input', () => { it.question = ta.value; });
+        card.append(head, ta);
+        const hint = document.createElement('div'); hint.className = 'qe-hint';
+        hint.textContent = 'Chọn nút tròn bên trái đáp án đúng. Để trống đáp án C, D nếu chỉ cần 2 đáp án (ví dụ Đúng / Sai).';
+        card.appendChild(hint);
+        for (let k = 0; k < 4; k++) {
+          const row = document.createElement('div'); row.className = 'qe-opt';
+          const rd = document.createElement('input'); rd.type = 'radio'; rd.name = 'qe-correct-' + qi; rd.checked = it.correct === k;
+          rd.title = 'Đáp án đúng'; rd.addEventListener('change', () => { it.correct = k; });
+          const tx = document.createElement('input'); tx.type = 'text'; tx.maxLength = 150; tx.placeholder = `Đáp án ${'ABCD'[k]}`;
+          tx.value = it.options[k] || ''; tx.addEventListener('input', () => { it.options[k] = tx.value; });
+          row.append(rd, tx); card.appendChild(row);
+        }
+        const ex = document.createElement('input'); ex.type = 'text'; ex.maxLength = 300; ex.placeholder = 'Giải thích đáp án (không bắt buộc, hiện cho học sinh sau khi nộp bài)';
+        ex.value = it.explanation || ''; ex.addEventListener('input', () => { it.explanation = ex.value; });
+        card.appendChild(ex);
+        list.appendChild(card);
+      });
+      if (!qe.items.length) {
+        const empty = document.createElement('div'); empty.className = 'quiz-sub';
+        empty.textContent = 'Chưa có câu hỏi nào. Bấm "Thêm câu hỏi" hoặc dán nhanh từ Word. Nếu lưu khi danh sách trống, tranh này sẽ không còn bài tập.';
+        list.appendChild(empty);
+      }
+    }
+
+    window.openQuizEditor = async () => {
+      const art = currentSelectedArtwork;
+      if (!art || !isTeacherLoggedIn) return;
+      qeStatus('Đang tải câu hỏi...', '');
+      $('qe-title').textContent = `📝 Soạn câu hỏi: Tranh #${art.id}`;
+      $('qedit-modal').style.display = 'flex';
+      const { data, error } = await supabase.from('quiz_questions')
+        .select('question, options, correct, explanation').eq('artwork_id', art.id).order('sort_order');
+      if (error) {
+        qe = { art, items: [blankQ()] }; renderEditor();
+        qeStatus('Không tải được câu hỏi: ' + error.message + ' (bạn đã chạy file supabase_quiz_builder.sql chưa?)', 'err');
+        return;
+      }
+      qe = { art, items: data.map((q) => ({ question: q.question, options: [...q.options, '', '', ''].slice(0, 4), correct: q.correct, explanation: q.explanation || '' })) };
+      if (!qe.items.length) qe.items = [blankQ()];
+      renderEditor();
+      qeStatus(data.length ? `Đang có ${data.length} câu hỏi.` : '', '');
+    };
+
+    $('qe-add').addEventListener('click', () => {
+      if (qe.items.length >= 20) { qeStatus('Mỗi tranh tối đa 20 câu hỏi.', 'err'); return; }
+      qe.items.push(blankQ()); renderEditor();
+      $('qe-list').lastElementChild && $('qe-list').lastElementChild.scrollIntoView({ block: 'nearest' });
+    });
+    $('qe-paste-add').addEventListener('click', () => {
+      const { items, errors } = parseQuizText($('qe-paste').value);
+      if (!items.length && !errors.length) { qeStatus('Hãy dán nội dung câu hỏi vào ô trên.', 'err'); return; }
+      const isBlank = (it) => !it.question.trim() && it.options.every((o) => !o.trim());
+      qe.items = qe.items.filter((it) => !isBlank(it));
+      const room = 20 - qe.items.length;
+      qe.items.push(...items.slice(0, Math.max(0, room)));
+      renderEditor();
+      if (items.length) $('qe-paste').value = '';
+      const parts = [];
+      if (items.length) parts.push(`✅ Đã thêm ${Math.min(items.length, Math.max(0, room))} câu.`);
+      if (items.length > room) parts.push('Chỉ thêm được tối đa 20 câu mỗi tranh.');
+      if (errors.length) parts.push('⚠ Bỏ qua: ' + errors.join(' '));
+      qeStatus(parts.join(' ') + (items.length ? ' Nhớ bấm "Lưu câu hỏi" để lưu.' : ''), errors.length && !items.length ? 'err' : 'ok');
+    });
+
+    $('qe-save').addEventListener('click', async () => {
+      const art = qe.art;
+      if (!art || !isTeacherLoggedIn) return;
+      const payload = [];
+      for (const [i, it] of qe.items.entries()) {
+        const n = i + 1;
+        const q = it.question.trim();
+        if (!q) { qeStatus(`Câu ${n}: chưa nhập nội dung câu hỏi.`, 'err'); return; }
+        const opts = []; let correct = -1;
+        it.options.forEach((o, k) => { const t = o.trim(); if (t) { if (k === it.correct) correct = opts.length; opts.push(t); } });
+        if (opts.length < 2) { qeStatus(`Câu ${n}: cần ít nhất 2 đáp án.`, 'err'); return; }
+        if (correct < 0) { qeStatus(`Câu ${n}: đáp án đúng đang để trống, hãy chọn nút tròn của một đáp án có nội dung.`, 'err'); return; }
+        payload.push({ question: q, options: opts, correct, explanation: it.explanation.trim() });
+      }
+      if (!payload.length && !confirm('Danh sách đang trống. Lưu sẽ xóa hết câu hỏi của tranh này. Tiếp tục?')) return;
+      $('qe-save').disabled = true;
+      qeStatus('Đang lưu...', '');
+      const { data, error } = await supabase.rpc('save_quiz', { p_artwork: art.id, p_questions: payload });
+      $('qe-save').disabled = false;
+      if (error) { qeStatus('Lỗi khi lưu: ' + error.message + (/save_quiz/.test(error.message) ? ' (bạn đã chạy file supabase_quiz_builder.sql chưa?)' : ''), 'err'); return; }
+      art.quizCount = Number(data) || 0;
+      $('qcount').textContent = art.quizCount;
+      refreshBadgeFor(art);
+      if (currentSelectedArtwork === art) renderTasks(art);
+      qeStatus(`✅ Đã lưu ${art.quizCount} câu hỏi cho Tranh #${art.id}. Học sinh sẽ thấy nút "Làm bài tập ngay".`, 'ok');
+    });
+    $('qe-close').addEventListener('click', () => { $('qedit-modal').style.display = 'none'; });
+
     window.addEventListener('click', (e) => {
       if (inUI(e.target)) return;
       if (dragMoved) { dragMoved = false; return; } // vừa kéo xoay, không tính là click
@@ -1516,7 +2000,7 @@
       resetVideo();
       currentSelectedArtwork = null;
       // Nhắc học sinh làm bài tập nếu tranh có bài mà chưa mở
-      if (art && !isTeacherLoggedIn && visitId && safeUrl(art.quizUrl) && !(progress[art.id] || {}).done) {
+      if (art && !isTeacherLoggedIn && visitId && hasAnyQuiz(art) && !(progress[art.id] || {}).done) {
         showToast(`📝 Tranh #${art.id} có bài tập em chưa hoàn thành. Hãy bấm lại vào tranh để làm bài và báo đã xong nhé!`, 8000);
       }
     };
