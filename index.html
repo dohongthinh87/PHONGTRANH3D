@@ -210,6 +210,7 @@
     .quiz-actions button:disabled { background: #9aa5a0; color: #fff; cursor: not-allowed; }
     #quiz-submit, #qe-save { background: #1a73e8; color: #fff; }
     #quiz-retry { background: #f59f00; color: #fff; }
+    #quiz-reveal { background: #7b1fa2; color: #fff; }
     #btn-inquiz { background: #1a73e8; }
     .qe-card { border: 1px solid #d5d9de; border-radius: 10px; padding: 12px; margin-bottom: 12px; background: #fafbfc; }
     .qe-card textarea, .qe-card input[type=text] { width: 100%; box-sizing: border-box; padding: 8px; border: 1px solid #ccc; border-radius: 6px; font: inherit; font-size: 13px; margin-bottom: 6px; }
@@ -327,7 +328,7 @@
         </div>
         <div id="results-summary"></div>
         <table class="vt">
-          <thead><tr><th>Học sinh</th><th>Mã số</th><th>Lớp</th><th>Tranh</th><th>Điểm tốt nhất</th><th>Tỉ lệ</th><th>Số lần làm</th><th>Lần gần nhất</th></tr></thead>
+          <thead><tr><th>Học sinh</th><th>Mã số</th><th>Lớp</th><th>Tranh</th><th>Lần thứ</th><th>Điểm</th><th>Tỉ lệ</th><th>Thời gian nộp</th><th>Đã xem đáp án</th></tr></thead>
           <tbody id="results-body"></tbody>
         </table>
       </div>
@@ -346,6 +347,7 @@
       <div class="quiz-actions">
         <button id="quiz-submit" disabled>✅ Nộp bài</button>
         <button id="quiz-retry" style="display:none">🔁 Làm lại</button>
+        <button id="quiz-reveal" style="display:none">👁 Xem đáp án</button>
         <button id="quiz-close">Đóng</button>
       </div>
     </div>
@@ -883,37 +885,36 @@
     $('tab-btn-results').addEventListener('click', () => showTab('results'));
     $('visits-refresh').addEventListener('click', () => (activeTab === 'results' ? loadResults() : loadVisits()));
 
-    // Kết quả làm bài trắc nghiệm: điểm tốt nhất của từng học sinh ở từng tranh
+    // Kết quả làm bài trắc nghiệm: GHI NHẬN TỪNG LẦN làm của từng học sinh
     let lastResults = [];
     const titleOfArt = (id) => { const m = artworkMeshes.find((x) => x.userData.id === id); return m ? m.userData.title : ''; };
     async function loadResults() {
       const body = $('results-body');
       body.innerHTML = '';
       $('results-summary').textContent = 'Đang tải...';
-      const { data, error } = await supabase.from('quiz_results').select('*');
-      if (error) { $('results-summary').textContent = 'Lỗi tải kết quả: ' + error.message + ' (bạn đã chạy file supabase_quiz_builder.sql chưa?)'; return; }
-      lastResults = data.sort((a, b) =>
-        (a.class_name || '').localeCompare(b.class_name || '', 'vi', { numeric: true }) ||
-        (a.full_name || '').localeCompare(b.full_name || '', 'vi') || a.artwork_id - b.artwork_id);
-      const avg = data.length ? Math.round(data.reduce((t, r) => t + (r.total ? r.best_score / r.total : 0), 0) / data.length * 100) : 0;
+      const { data, error } = await supabase.from('quiz_attempt_log').select('*');
+      if (error) { $('results-summary').textContent = 'Lỗi tải kết quả: ' + error.message + ' (bạn đã chạy file supabase_quiz_builder.sql bản mới chưa?)'; return; }
+      lastResults = data.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));   // mới nhất lên đầu
+      const students = new Set(data.map((r) => r.student_id)).size;
+      const avg = data.length ? Math.round(data.reduce((t, r) => t + (r.total ? r.score / r.total : 0), 0) / data.length * 100) : 0;
       $('results-summary').textContent = data.length
-        ? `${data.length} kết quả (mỗi dòng là điểm tốt nhất của một học sinh ở một tranh) · điểm trung bình ${avg}%.`
+        ? `${data.length} lần làm bài của ${students} học sinh (mới nhất ở trên) · điểm trung bình các lần làm ${avg}%.`
         : 'Chưa có học sinh nào làm bài tập trắc nghiệm.';
       lastResults.forEach((r) => {
-        const pct = r.total ? Math.round(r.best_score / r.total * 100) : 0;
+        const pct = r.total ? Math.round(r.score / r.total * 100) : 0;
         const tr = document.createElement('tr');
         tr.append(cell(r.full_name || '(đã xóa)'), cell(r.student_code || ''), cell(r.class_name || ''),
           cell(`#${r.artwork_id}${titleOfArt(r.artwork_id) ? ' · ' + titleOfArt(r.artwork_id) : ''}`),
-          cell(`${r.best_score}/${r.total}`), cell(pct + '%'), cell(r.attempts), cell(fmtDateTime(r.last_attempt)));
+          cell(r.attempt_no), cell(`${r.score}/${r.total}`), cell(pct + '%'), cell(fmtDateTime(r.created_at)), cell(r.revealed ? '✔ Đã xem' : ''));
         body.appendChild(tr);
       });
     }
     $('results-csv').addEventListener('click', () => {
       if (!lastResults.length) { showToast('Chưa có kết quả để xuất.'); return; }
-      const lines = [['Học sinh', 'Mã số', 'Lớp', 'Tranh', 'Tên tranh', 'Điểm tốt nhất', 'Tổng số câu', 'Tỉ lệ (%)', 'Số lần làm', 'Lần gần nhất'].map(csvCell).join(',')];
+      const lines = [['Học sinh', 'Mã số', 'Lớp', 'Tranh', 'Tên tranh', 'Lần thứ', 'Điểm', 'Tổng số câu', 'Tỉ lệ (%)', 'Thời gian nộp', 'Đã xem đáp án'].map(csvCell).join(',')];
       lastResults.forEach((r) => lines.push([r.full_name || '', r.student_code || '', r.class_name || '', r.artwork_id, titleOfArt(r.artwork_id),
-        r.best_score, r.total, r.total ? Math.round(r.best_score / r.total * 100) : 0, r.attempts, fmtDateTime(r.last_attempt)].map(csvCell).join(',')));
-      const blob = new Blob(['\uFEFF' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+        r.attempt_no, r.score, r.total, r.total ? Math.round(r.score / r.total * 100) : 0, fmtDateTime(r.created_at), r.revealed ? 'Có' : 'Không'].map(csvCell).join(',')));
+      const blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
       a.download = `ket-qua-bai-tap-${new Date().toISOString().slice(0, 10)}.csv`;
@@ -1358,7 +1359,7 @@
       $('btn-video').style.display = video ? 'block' : 'none';
       $('btn-inquiz').style.display = inq ? 'block' : 'none';
       $('btn-inquiz').textContent = isTeacherLoggedIn ? `👁 Xem trước bài tập (${art.quizCount} câu)`
-        : (p.done ? '🔁 Làm lại bài tập' : `📝 Làm bài tập ngay (${art.quizCount} câu)`);
+        : (p.revealed ? '👁 Xem lại kết quả bài tập' : (p.done ? '🔁 Làm lại bài tập' : `📝 Làm bài tập ngay (${art.quizCount} câu)`));
       $('btn-quiz').style.display = link ? 'block' : 'none';
       $('btn-quiz').textContent = inq ? '🔗 Bài tập thêm (mở link)' : '📝 Làm bài tập (mở link)';
       $('btn-done').style.display = (!inq && link && p.quiz && !p.done && !isTeacherLoggedIn) ? 'block' : 'none';
@@ -1692,6 +1693,8 @@
     function quizError(message) {
       const m = String(message || '');
       if (/invalid_visit|invalid_code/.test(m)) return 'Phiên vào phòng không còn hiệu lực. Hãy tải lại trang và nhập lại mã số.';
+      if (/already_revealed/.test(m)) return 'Em đã xem đáp án của bài này nên không thể làm lại nữa.';
+      if (/no_attempt/.test(m)) return 'Em cần làm bài và nộp ít nhất một lần trước khi xem đáp án.';
       if (/too_many_attempts/.test(m)) return 'Em đã làm bài này quá nhiều lần. Hãy hỏi giáo viên.';
       if (/no_questions/.test(m)) return 'Tranh này chưa có câu hỏi.';
       return m;
@@ -1714,7 +1717,7 @@
         : 'Chọn một đáp án cho mỗi câu, rồi bấm "Nộp bài". Làm sai có thể làm lại.';
       $('quiz-score').style.display = 'none';
       $('quiz-error').textContent = '';
-      $('quiz-submit').style.display = ''; $('quiz-retry').style.display = 'none';
+      $('quiz-submit').style.display = ''; $('quiz-retry').style.display = 'none'; $('quiz-reveal').style.display = 'none';
       const body = $('quiz-body');
       body.innerHTML = '';
       questions.forEach((q, qi) => {
@@ -1763,15 +1766,23 @@
         showToast('Tranh này chưa có câu hỏi bài tập.');
         return;
       }
-      quizState = { art, questions, preview, answers: {}, submitted: false };
+      let locked = false;
+      if (!preview) {
+        const st = await supabase.rpc('quiz_state', { p_visit: visitId, p_artwork: art.id });
+        locked = !!(st.data && st.data.revealed);
+      }
+      quizState = { art, questions, preview, answers: {}, submitted: false, locked, lastResult: null };
       trackEvent(art.id, 'quiz');
       renderQuiz();
       $('quiz-modal').style.display = 'flex';
       $('quiz-modal').querySelector('.quiz-box').scrollTop = 0;
+      if (locked) await doReveal(true);      // đã xem đáp án trước đó: chỉ xem lại, không làm lại được
     };
 
+    // Sau khi nộp: CHỈ hiện điểm. Đáp án chỉ hiện khi học sinh bấm "Xem đáp án" (và sau đó không làm lại được).
     function showQuizResult(result) {
       quizState.submitted = true;
+      quizState.lastResult = result;
       const { score, total } = result;
       const pct = total ? score / total : 0;
       const banner = $('quiz-score');
@@ -1779,20 +1790,40 @@
       banner.textContent = `${pct >= 0.8 ? '🎉' : pct >= 0.5 ? '👍' : '💪'} Em đúng ${score}/${total} câu`;
       const small = document.createElement('small');
       small.textContent = quizState.preview ? 'Xem trước: điểm không được lưu.'
-        : (pct >= 0.8 ? 'Giỏi lắm! Hãy sang tranh tiếp theo nhé.' : 'Hãy xem đáp án bên dưới rồi bấm "Làm lại" để thử lần nữa.');
+        : 'Em có thể bấm "Làm lại" để thử lần nữa. Nếu bấm "Xem đáp án" thì sẽ thấy đáp án đúng, nhưng sau đó không được làm lại bài này nữa.';
       banner.appendChild(small);
+      $('quiz-body').querySelectorAll('input').forEach((i) => { i.disabled = true; });
+      $('quiz-body').querySelectorAll('.q-opt').forEach((l) => l.classList.add('locked'));
+      $('quiz-bar').style.width = '100%';
+      $('quiz-submit').style.display = 'none';
+      $('quiz-retry').style.display = '';
+      $('quiz-reveal').style.display = '';
+      $('quiz-modal').querySelector('.quiz-box').scrollTop = 0;
+    }
 
-      const byId = new Map(result.results.map((r) => [r.id, r]));
+    // Hiện đáp án đúng + giải thích; từ lúc này học sinh bị khóa làm lại (máy chủ cũng chặn)
+    function applyReveal(result, locked) {
+      quizState.submitted = true;
+      const { score, total } = result;
+      const banner = $('quiz-score');
+      banner.style.display = 'block';
+      banner.textContent = `📋 Bài làm gần nhất: đúng ${score}/${total} câu`;
+      const small = document.createElement('small');
+      small.textContent = locked ? 'Em đã xem đáp án nên không thể làm lại bài này.' : 'Xem trước của giáo viên: không khóa, không lưu điểm.';
+      banner.appendChild(small);
+      const byId = new Map(result.results.map((r) => [String(r.id), r]));
       $('quiz-body').querySelectorAll('.q-card').forEach((card) => {
-        const r = byId.get(Number(card.dataset.qid));
+        const r = byId.get(String(card.dataset.qid));
         if (!r) return;
+        card.classList.remove('right', 'wrong');
         card.classList.add(r.is_correct ? 'right' : 'wrong');
         card.querySelectorAll('.q-opt').forEach((lab, oi) => {
-          lab.classList.add('locked'); lab.classList.remove('sel');
-          lab.querySelector('input').disabled = true;
+          lab.classList.add('locked'); lab.classList.remove('sel', 'ok', 'bad');
+          const inp = lab.querySelector('input'); inp.disabled = true; inp.checked = (oi === r.selected);
           if (oi === r.correct_index) lab.classList.add('ok');
           else if (oi === r.selected) lab.classList.add('bad');
         });
+        card.querySelectorAll('.q-explain').forEach((x) => x.remove());
         const ex = document.createElement('div'); ex.className = 'q-explain';
         ex.textContent = (r.is_correct ? '✅ Chính xác!' : (r.selected === null ? '⚠ Em chưa chọn đáp án.' : `❌ Chưa đúng. Đáp án đúng là ${'ABCD'[r.correct_index]}.`))
           + (r.explanation ? ' ' + r.explanation : '');
@@ -1800,9 +1831,26 @@
       });
       $('quiz-bar').style.width = '100%';
       $('quiz-submit').style.display = 'none';
-      $('quiz-retry').style.display = '';
+      $('quiz-reveal').style.display = 'none';
+      $('quiz-retry').style.display = locked ? 'none' : '';
       $('quiz-modal').querySelector('.quiz-box').scrollTop = 0;
     }
+
+    async function doReveal(auto) {
+      if (!quizState) return;
+      const art = quizState.art;
+      if (quizState.preview) { if (quizState.lastResult) applyReveal(quizState.lastResult, false); return; }
+      if (!auto && !confirm('Sau khi xem đáp án, em sẽ KHÔNG được làm lại bài tập này nữa. Em chắc chắn muốn xem đáp án?')) return;
+      $('quiz-error').textContent = '';
+      const { data, error } = await supabase.rpc('reveal_quiz', { p_visit: visitId, p_artwork: art.id });
+      if (error) { $('quiz-error').textContent = quizError(error.message); return; }
+      quizState.locked = true;
+      (progress[art.id] || (progress[art.id] = {})).revealed = true;
+      store.set(PROGRESS_KEY, progress);
+      applyReveal(data, true);
+      if (art === currentSelectedArtwork) renderTasks(art);
+    }
+    $('quiz-reveal').addEventListener('click', () => doReveal(false));
 
     $('quiz-submit').addEventListener('click', async () => {
       if (!quizState || quizState.submitted) return;
