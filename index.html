@@ -396,7 +396,7 @@
           <button id="roster-create">➕ Tạo mã số</button>
           <button id="roster-csv">⬇ Xuất danh sách (CSV)</button>
           <button id="roster-print">🖨 In phiếu mã số</button>
-          <span>Số tranh tối đa mỗi em: <input type="number" id="roster-limit" min="0" max="45" value="1"> <button id="roster-limit-save">Lưu</button> <small>(0 = không giới hạn)</small></span>
+          <span>Số tranh tối đa mỗi em: <input type="number" id="roster-limit" min="0" max="50" value="1"> <button id="roster-limit-save">Lưu</button> <small>(0 = không giới hạn)</small></span>
         </div>
         <div id="roster-msg" role="status" aria-live="polite"></div>
       </div>
@@ -1045,7 +1045,7 @@
 
     $('roster-limit-save').addEventListener('click', async () => {
       const v = String($('roster-limit').value).trim();
-      if (!/^[0-9]+$/.test(v) || Number(v) > 45) { rosterMsg('Số tranh tối đa phải là số từ 0 đến 45.', 'err'); return; }
+      if (!/^[0-9]+$/.test(v) || Number(v) > 50) { rosterMsg('Số tranh tối đa phải là số từ 0 đến 50.', 'err'); return; }
       const { error } = await supabase.from('room_settings').upsert([{ key: 'max_per_student', value: v }]);
       rosterMsg(error ? 'Lỗi: ' + error.message : (v === '0' ? '✅ Đã bỏ giới hạn số tranh.' : `✅ Mỗi học sinh được nộp tối đa ${v} tranh.`), error ? 'err' : 'ok');
     });
@@ -1262,7 +1262,13 @@
       materialsMap.set(dataItem.id, artMat);
     }
 
+    const TOTAL_ARTWORKS = 50;
     function buildGallery() {
+      // data.js có thể mới có 45 tranh: tự bổ sung các ô còn thiếu (46-50) bằng ô trống để học sinh nộp bài vào
+      for (let i = 1; i <= TOTAL_ARTWORKS; i++) {
+        if (!artworksData.some((a) => Number(a.id) === i)) artworksData.push({ id: i, title: 'Tác phẩm ' + i, author: 'Đang chờ tác giả', description: 'Ô tranh số ' + i + ' đang chờ học sinh nộp bài.', image: '' });
+      }
+      artworksData.sort((a, b) => Number(a.id) - Number(b.id));
       let idx = 0;
       for (let i = 0; i < 12; i++) hangPainting(artworksData[idx++], -14.7, 2.5, 18 - i * 3.3, Math.PI / 2);
       for (let i = 0; i < 12; i++) hangPainting(artworksData[idx++], 14.7, 2.5, 18 - i * 3.3, -Math.PI / 2);
@@ -1271,6 +1277,8 @@
       for (let i = 0; i < 4; i++) hangPainting(artworksData[idx++], -4.65, 2.4, 3 - i * 3.3, Math.PI / 2);
       for (let i = 0; i < 4; i++) hangPainting(artworksData[idx++], 4.65, 2.4, 3 - i * 3.3, -Math.PI / 2);
       for (let i = 0; i < 4; i++) hangPainting(artworksData[idx++], 5.35, 2.4, 3 - i * 3.3, Math.PI / 2);
+      // 5 tranh mới (46-50) trên bức tường phía sau lưng điểm xuất phát, quay mặt vào phòng
+      for (let i = 0; i < 5; i++) hangPainting(artworksData[idx++], -10 + i * 5, 2.5, 22.7, Math.PI);
     }
 
     fetchArtworksFromSupabase();
