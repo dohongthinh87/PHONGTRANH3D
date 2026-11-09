@@ -212,6 +212,22 @@
     #quiz-retry { background: #f59f00; color: #fff; }
     #quiz-reveal { background: #7b1fa2; color: #fff; }
     #btn-inquiz { background: #1a73e8; }
+    .katex { font-size: 1.08em; }
+    .qe-tools { display: flex; flex-wrap: wrap; gap: 4px; margin: 4px 0 8px; align-items: center; }
+    .qe-tools span { font-size: 12px; color: #555; margin-right: 4px; }
+    .qe-tools button { border: 1px solid #c9d3e3; background: #fff; color: #174ea6; border-radius: 6px; padding: 5px 9px; cursor: pointer; font-size: 14px; min-width: 34px; }
+    .qe-tools button:hover { background: #e8f0fe; }
+    .qe-move { display: flex; gap: 4px; }
+    .qe-move button, .qe-head .qe-move button { background: #e8f0fe; color: #174ea6; padding: 4px 9px; }
+    .qe-move button:disabled { opacity: .35; cursor: not-allowed; }
+    .qe-preview { margin-top: 8px; padding: 8px 10px; border: 1px dashed #aab4c8; border-radius: 8px; background: #fff; font-size: 14px; line-height: 1.55; }
+    .qe-preview .pv-q { font-weight: 600; margin-bottom: 4px; }
+    .qe-preview .pv-o.ok { color: #137333; font-weight: 600; }
+    .qe-preview small { display: block; color: #777; margin-bottom: 4px; }
+    .qe-card.moved { animation: qemoved 1s ease; }
+    @keyframes qemoved { 0% { background: #fff3c4; } 100% { background: #fafbfc; } }
+    details.qe-formula { background: #f6fff7; border: 1px solid #cfe9d3; border-radius: 8px; padding: 8px 12px; margin-bottom: 12px; font-size: 13px; line-height: 1.6; }
+    details.qe-formula code { background: #fff; border: 1px solid #e0e3e7; border-radius: 4px; padding: 1px 5px; }
     .qe-card { border: 1px solid #d5d9de; border-radius: 10px; padding: 12px; margin-bottom: 12px; background: #fafbfc; }
     .qe-card textarea, .qe-card input[type=text] { width: 100%; box-sizing: border-box; padding: 8px; border: 1px solid #ccc; border-radius: 6px; font: inherit; font-size: 13px; margin-bottom: 6px; }
     .qe-head { display: flex; justify-content: space-between; align-items: center; font-weight: 700; margin-bottom: 6px; }
@@ -369,6 +385,15 @@
         <textarea id="qe-paste" rows="8" placeholder="Dán nội dung câu hỏi vào đây..."></textarea>
         <button id="qe-paste-add" type="button">➕ Thêm vào danh sách bên dưới</button>
       </details>
+      <details class="qe-formula">
+        <summary><b>➗ Cách đánh công thức</b> (Toán, Lý, Hóa)</summary>
+        Đặt công thức giữa hai dấu <code>$</code>, ví dụ <code>$x^2 + 3x - 4 = 0$</code> sẽ hiện thành công thức đẹp. Dùng được trong câu hỏi, đáp án và giải thích. Mỗi câu có khung <i>"Xem trước"</i> để thầy/cô kiểm tra ngay.<br>
+        • Phân số: <code>$\frac{a}{b}$</code> &nbsp; • Lũy thừa: <code>$x^{2}$</code> &nbsp; • Chỉ số dưới: <code>$H_{2}O$</code>, <code>$x_{1}$</code><br>
+        • Căn: <code>$\sqrt{x}$</code>, <code>$\sqrt[3]{x}$</code> &nbsp; • Tổng, tích phân: <code>$\sum_{i=1}^{n} i$</code>, <code>$\int_0^1 x\,dx$</code><br>
+        • Ký hiệu: <code>$\pi$</code> <code>$\alpha$</code> <code>$\Delta$</code> <code>$\le$</code> <code>$\ge$</code> <code>$\ne$</code> <code>$\infty$</code> <code>$30^\circ$</code> <code>$\times$</code> <code>$\rightarrow$</code><br>
+        • Hóa học: <code>$2H_2 + O_2 \rightarrow 2H_2O$</code> &nbsp; • Muốn viết dấu đô la thường: <code>\$</code>
+      </details>
+      <div class="qe-tools" id="qe-tools"><span>Chèn nhanh vào ô đang chọn:</span></div>
       <div id="qe-list"></div>
       <div class="quiz-actions">
         <button id="qe-add" type="button">➕ Thêm câu hỏi</button>
@@ -473,6 +498,8 @@
     </div>
   </div>
 
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js" onload="window.__katexReady && window.__katexReady()"></script>
   <script src="data.js"></script>
 
   <script type="importmap">
@@ -1718,6 +1745,54 @@
       setStatus(`✅ Đã gỡ Tác phẩm #${art.id}. Ô này đã trống để học sinh nộp lại.`, 'ok');
     };
 
+    // ---------- Hiển thị chữ + công thức ($...$) bằng KaTeX ----------
+    // Nội dung luôn đưa vào bằng textNode / KaTeX (KHÔNG dùng innerHTML) nên không thể chèn mã độc.
+    // Tách chuỗi thành các đoạn chữ và đoạn công thức ($...$). "\$" là dấu đô la thường.
+    function splitMath(raw) {
+      const out = [];
+      let text = '', i = 0;
+      while (i < raw.length) {
+        const c = raw[i];
+        if (c === '\\' && raw[i + 1] === '$') { text += '$'; i += 2; continue; }
+        if (c === '$') {
+          let j = i + 1, found = -1;
+          while (j < raw.length && raw[j] !== '\n') {
+            if (raw[j] === '\\') { j += 2; continue; }
+            if (raw[j] === '$') { found = j; break; }
+            j++;
+          }
+          if (found > i + 1) {
+            if (text) { out.push({ t: text }); text = ''; }
+            out.push({ m: raw.slice(i + 1, found) });
+            i = found + 1; continue;
+          }
+        }
+        text += c; i++;
+      }
+      if (text) out.push({ t: text });
+      return out;
+    }
+    function fillRich(el, text) {
+      const raw = String(text == null ? '' : text);
+      el.dataset.raw = raw;
+      el.classList.add('rich');
+      el.textContent = '';
+      splitMath(raw).forEach((part) => {
+        if (part.m !== undefined && window.katex) {
+          const span = document.createElement('span');
+          try {
+            window.katex.render(part.m, span, { throwOnError: false, displayMode: false, trust: false, strict: 'ignore', maxExpand: 500, maxSize: 20 });
+          } catch (e) { span.textContent = '$' + part.m + '$'; }
+          el.appendChild(span);
+        } else {
+          el.appendChild(document.createTextNode(part.m !== undefined ? '$' + part.m + '$' : part.t));
+        }
+      });
+    }
+    // Khi thư viện công thức tải xong sau khi trang đã vẽ, vẽ lại các chỗ đang hiện mã thô
+    window.__katexReady = () => document.querySelectorAll('.rich').forEach((el) => fillRich(el, el.dataset.raw));
+    if (window.katex) window.__katexReady();
+
     // ---------- Làm bài tập trắc nghiệm ----------
     // Học sinh: câu hỏi lấy qua hàm get_quiz (KHÔNG kèm đáp án), nộp bài qua submit_quiz để Supabase chấm điểm.
     // Giáo viên: "xem trước" bằng cách đọc thẳng bảng câu hỏi, chấm trên máy và không lưu điểm.
@@ -1755,12 +1830,12 @@
       body.innerHTML = '';
       questions.forEach((q, qi) => {
         const card = document.createElement('div'); card.className = 'q-card'; card.dataset.qid = q.id;
-        const t = document.createElement('div'); t.className = 'q-text'; t.textContent = `Câu ${qi + 1}. ${q.question}`;
+        const t = document.createElement('div'); t.className = 'q-text'; fillRich(t, `Câu ${qi + 1}. ${q.question}`);
         card.appendChild(t);
         q.options.forEach((opt, oi) => {
           const lab = document.createElement('label'); lab.className = 'q-opt';
           const r = document.createElement('input'); r.type = 'radio'; r.name = 'qa' + q.id; r.value = String(oi);
-          const sp = document.createElement('span'); sp.textContent = `${'ABCD'[oi]}. ${opt}`;
+          const sp = document.createElement('span'); fillRich(sp, `${'ABCD'[oi]}. ${opt}`);
           r.addEventListener('change', () => {
             quizState.answers[q.id] = oi;
             card.querySelectorAll('.q-opt').forEach((l) => l.classList.remove('sel'));
@@ -1859,8 +1934,8 @@
         });
         card.querySelectorAll('.q-explain').forEach((x) => x.remove());
         const ex = document.createElement('div'); ex.className = 'q-explain';
-        ex.textContent = (r.is_correct ? '✅ Chính xác!' : (r.selected === null ? '⚠ Em chưa chọn đáp án.' : `❌ Chưa đúng. Đáp án đúng là ${'ABCD'[r.correct_index]}.`))
-          + (r.explanation ? ' ' + r.explanation : '');
+        fillRich(ex, (r.is_correct ? '✅ Chính xác!' : (r.selected === null ? '⚠ Em chưa chọn đáp án.' : `❌ Chưa đúng. Đáp án đúng là ${'ABCD'[r.correct_index]}.`))
+          + (r.explanation ? ' ' + r.explanation : ''));
         card.appendChild(ex);
       });
       $('quiz-bar').style.width = '100%';
@@ -1966,18 +2041,74 @@
       return { items, errors };
     }
 
+    let qeLast = null;     // ô chữ đang soạn gần nhất (để chèn công thức vào đúng chỗ con trỏ)
+    const QE_SNIPPETS = [
+      ['x²', '$x^{2}$'], ['xₙ', '$x_{n}$'], ['a/b', '$\\frac{a}{b}$'], ['√', '$\\sqrt{x}$'], ['ⁿ√', '$\\sqrt[n]{x}$'],
+      ['π', '$\\pi$'], ['≤', '$\\le$'], ['≥', '$\\ge$'], ['≠', '$\\ne$'], ['±', '$\\pm$'], ['×', '$\\times$'],
+      ['∞', '$\\infty$'], ['°', '$^\\circ$'], ['Σ', '$\\sum_{i=1}^{n}$'], ['∫', '$\\int_{a}^{b}$'], ['→', '$\\rightarrow$'],
+      ['H₂O', '$H_{2}O$'], ['α', '$\\alpha$'], ['Δ', '$\\Delta$']
+    ];
+    QE_SNIPPETS.forEach(([label, code]) => {
+      const b = document.createElement('button'); b.type = 'button'; b.textContent = label; b.title = code;
+      b.addEventListener('mousedown', (e) => e.preventDefault());          // giữ nguyên con trỏ trong ô đang soạn
+      b.addEventListener('click', () => {
+        const f = qeLast;
+        if (!f || !document.body.contains(f)) { qeStatus('Hãy bấm vào một ô (câu hỏi, đáp án hoặc giải thích) trước rồi mới chèn công thức.', 'err'); return; }
+        const st = f.selectionStart == null ? f.value.length : f.selectionStart, en = f.selectionEnd == null ? st : f.selectionEnd;
+        const room = (f.maxLength > 0 ? f.maxLength : 9999) - (f.value.length - (en - st));
+        if (code.length > room) { qeStatus('Ô này đã hết chỗ (giới hạn độ dài).', 'err'); return; }
+        f.value = f.value.slice(0, st) + code + f.value.slice(en);
+        const pos = st + code.length;
+        f.focus(); try { f.setSelectionRange(pos, pos); } catch (e) { /* bỏ qua */ }
+        f.dispatchEvent(new Event('input', { bubbles: true }));
+        qeStatus('', '');
+      });
+      $('qe-tools').appendChild(b);
+    });
+
+    function moveQuestion(qi, dir) {
+      const to = qi + dir;
+      if (to < 0 || to >= qe.items.length) return;
+      [qe.items[qi], qe.items[to]] = [qe.items[to], qe.items[qi]];
+      renderEditor();
+      const card = $('qe-list').children[to];
+      if (card) { card.classList.add('moved'); card.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }
+    }
+
     function renderEditor() {
       const list = $('qe-list');
       list.innerHTML = '';
+      qeLast = null;
       qe.items.forEach((it, qi) => {
         const card = document.createElement('div'); card.className = 'qe-card';
         const head = document.createElement('div'); head.className = 'qe-head';
         const h = document.createElement('span'); h.textContent = `Câu ${qi + 1}`;
-        const del = document.createElement('button'); del.type = 'button'; del.textContent = '🗑 Xóa câu này';
+        const mv = document.createElement('div'); mv.className = 'qe-move';
+        const up = document.createElement('button'); up.type = 'button'; up.textContent = '⬆'; up.title = 'Chuyển lên trên'; up.disabled = qi === 0;
+        const dn = document.createElement('button'); dn.type = 'button'; dn.textContent = '⬇'; dn.title = 'Chuyển xuống dưới'; dn.disabled = qi === qe.items.length - 1;
+        up.addEventListener('click', () => moveQuestion(qi, -1));
+        dn.addEventListener('click', () => moveQuestion(qi, 1));
+        const del = document.createElement('button'); del.type = 'button'; del.textContent = '🗑 Xóa';
         del.addEventListener('click', () => { qe.items.splice(qi, 1); renderEditor(); });
-        head.append(h, del);
-        const ta = document.createElement('textarea'); ta.rows = 2; ta.maxLength = 300; ta.placeholder = 'Nội dung câu hỏi';
-        ta.value = it.question; ta.addEventListener('input', () => { it.question = ta.value; });
+        mv.append(up, dn, del);
+        head.append(h, mv);
+
+        const pv = document.createElement('div'); pv.className = 'qe-preview';
+        const updatePreview = () => {
+          pv.innerHTML = '';
+          const lab = document.createElement('small'); lab.textContent = 'Xem trước (học sinh sẽ thấy như thế này):'; pv.appendChild(lab);
+          const q = document.createElement('div'); q.className = 'pv-q'; fillRich(q, `Câu ${qi + 1}. ${it.question || '...'}`); pv.appendChild(q);
+          it.options.forEach((o, k) => {
+            if (!String(o).trim()) return;
+            const d = document.createElement('div'); d.className = 'pv-o' + (it.correct === k ? ' ok' : '');
+            fillRich(d, `${'ABCD'[k]}. ${o}${it.correct === k ? '  ✔' : ''}`); pv.appendChild(d);
+          });
+          if (String(it.explanation || '').trim()) { const e = document.createElement('div'); fillRich(e, 'Giải thích: ' + it.explanation); pv.appendChild(e); }
+        };
+        const track = (el) => el.addEventListener('focus', () => { qeLast = el; });
+
+        const ta = document.createElement('textarea'); ta.rows = 2; ta.maxLength = 600; ta.placeholder = 'Nội dung câu hỏi (công thức đặt giữa hai dấu $, ví dụ $x^{2}$)';
+        ta.value = it.question; ta.addEventListener('input', () => { it.question = ta.value; updatePreview(); }); track(ta);
         card.append(head, ta);
         const hint = document.createElement('div'); hint.className = 'qe-hint';
         hint.textContent = 'Chọn nút tròn bên trái đáp án đúng. Để trống đáp án C, D nếu chỉ cần 2 đáp án (ví dụ Đúng / Sai).';
@@ -1985,14 +2116,16 @@
         for (let k = 0; k < 4; k++) {
           const row = document.createElement('div'); row.className = 'qe-opt';
           const rd = document.createElement('input'); rd.type = 'radio'; rd.name = 'qe-correct-' + qi; rd.checked = it.correct === k;
-          rd.title = 'Đáp án đúng'; rd.addEventListener('change', () => { it.correct = k; });
-          const tx = document.createElement('input'); tx.type = 'text'; tx.maxLength = 150; tx.placeholder = `Đáp án ${'ABCD'[k]}`;
-          tx.value = it.options[k] || ''; tx.addEventListener('input', () => { it.options[k] = tx.value; });
+          rd.title = 'Đáp án đúng'; rd.addEventListener('change', () => { it.correct = k; updatePreview(); });
+          const tx = document.createElement('input'); tx.type = 'text'; tx.maxLength = 300; tx.placeholder = `Đáp án ${'ABCD'[k]}`;
+          tx.value = it.options[k] || ''; tx.addEventListener('input', () => { it.options[k] = tx.value; updatePreview(); }); track(tx);
           row.append(rd, tx); card.appendChild(row);
         }
-        const ex = document.createElement('input'); ex.type = 'text'; ex.maxLength = 300; ex.placeholder = 'Giải thích đáp án (không bắt buộc, hiện cho học sinh sau khi nộp bài)';
-        ex.value = it.explanation || ''; ex.addEventListener('input', () => { it.explanation = ex.value; });
+        const ex = document.createElement('input'); ex.type = 'text'; ex.maxLength = 600; ex.placeholder = 'Giải thích đáp án (không bắt buộc, hiện cho học sinh sau khi nộp bài)';
+        ex.value = it.explanation || ''; ex.addEventListener('input', () => { it.explanation = ex.value; updatePreview(); }); track(ex);
         card.appendChild(ex);
+        card.appendChild(pv);
+        updatePreview();
         list.appendChild(card);
       });
       if (!qe.items.length) {
