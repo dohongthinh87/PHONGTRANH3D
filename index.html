@@ -1162,7 +1162,7 @@
         } else if (data) {
           data.forEach((item) => {
             if (item.status === 'pending' || item.status === 'rejected') return; // chưa duyệt thì ẩn
-            dynamicArtworksData[item.id] = item;
+            dynamicArtworksData[item.id] = item;   // gồm cả ô 'removed' (đã gỡ = ô trống)
           });
         }
       } catch (e) {
@@ -1238,6 +1238,64 @@
       if (m) updateBadge(m);
     }
 
+    // Nội dung hiển thị của một ô: ô 'removed' = ô trống; có bài nộp = bài nộp; chưa có = tranh mặc định trong data.js
+    const EMPTY_SLOT_TEXT = 'Ô tranh này đang trống, chờ học sinh nộp bài.';
+    function computeView(d, row) {
+      if (row && (row.status === 'pending' || row.status === 'rejected')) row = null;
+      if (row && row.status === 'removed') return { removed: true, title: 'Ô trống', author: '', description: EMPTY_SLOT_TEXT, image: '', quizUrl: '', videoUrl: '' };
+      if (row) return { removed: false, title: row.title || d.title, author: row.author || d.author, description: row.description || d.description,
+        image: row.image_url || d.image, quizUrl: row.quiz_url || d.quizUrl || '', videoUrl: row.video_url || d.videoUrl || '' };
+      return { removed: false, title: d.title, author: d.author, description: d.description, image: d.image, quizUrl: d.quizUrl || '', videoUrl: d.videoUrl || '' };
+    }
+    // Áp dữ liệu mới nhất từ máy chủ lên một tranh đang treo trong phòng (đổi ảnh, đổi chữ, gỡ tranh)
+    function applyRow(info, row) {
+      const next = computeView(info.defaults || {}, row);
+      const sig = JSON.stringify(next);
+      if (info._sig === sig) return false;
+      info._sig = sig;
+      const imageChanged = next.image !== info.image || next.removed !== !!info.removed;
+      Object.assign(info, next);
+      if (next.removed) info.quizCount = 0;
+      if (imageChanged) {
+        const mat = materialsMap.get(info.id);
+        if (mat) {
+          const fb = createFallbackTexture(info.id, info.title);
+          info.fallbackUrl = fb.dataUrl;
+          mat.map = fb.tex; mat.needsUpdate = true;
+          loadIntoMaterial(mat, info.image);
+        }
+      }
+      if (currentSelectedArtwork === info) {
+        $('m-title').innerText = info.title || '';
+        $('m-author').innerText = info.author ? 'Tác giả: ' + info.author : '';
+        $('m-desc').innerText = info.description || '';
+        setModalImage(info);
+        renderTasks(info);
+      }
+      refreshBadgeFor(info);
+      return true;
+    }
+
+    // Học sinh đang ở trong phòng: định kỳ cập nhật tranh bị đổi / bị gỡ (không cần tải lại trang)
+    async function syncArtworks() {
+      try {
+        const { data, error } = await supabase.from('artworks')
+          .select('id, title, author, description, image_url, quiz_url, video_url, status');
+        if (error || !data) return;
+        const byId = new Map(data.map((r) => [Number(r.id), r]));
+        let changed = false;
+        artworkMeshes.forEach((m) => { if (applyRow(m.userData, byId.get(Number(m.userData.id)))) changed = true; });
+        const qc = await supabase.rpc('quiz_counts');
+        if (qc && qc.data && typeof qc.data === 'object') {
+          quizCounts = qc.data;
+          artworkMeshes.forEach((m) => { const u = m.userData; const n = u.removed ? 0 : (Number(quizCounts[String(u.id)]) || 0); if (n !== u.quizCount) { u.quizCount = n; changed = true; refreshBadgeFor(u); if (currentSelectedArtwork === u) renderTasks(u); } });
+        }
+        if (changed) updateProgressHud();
+      } catch (e) { console.warn('Không đồng bộ được tranh:', e); }
+    }
+    setInterval(() => { if (document.visibilityState === 'visible' && !isTeacherLoggedIn) syncArtworks(); }, 30000);
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && !isTeacherLoggedIn) syncArtworks(); });
+
     function hangPainting(dataItem, x, y, z, rotY) {
       const frame = new THREE.Mesh(
         new THREE.BoxGeometry(2.3, 1.75, 0.08),
@@ -1249,10 +1307,11 @@
 
       // Ưu tiên dữ liệu trên Supabase, nếu chưa có thì dùng data.js
       const dbItem = dynamicArtworksData[dataItem.id] || {};
-      const currentTitle = dbItem.title || dataItem.title;
-      const currentAuthor = dbItem.author || dataItem.author;
-      const currentDesc = dbItem.description || dataItem.description;
-      const currentImage = dbItem.image_url || dataItem.image;
+      const view = computeView({ title: dataItem.title, author: dataItem.author, description: dataItem.description, image: dataItem.image, quizUrl: dataItem.quizUrl || '', videoUrl: dataItem.videoUrl || '' }, dynamicArtworksData[dataItem.id]);
+      const currentTitle = view.title;
+      const currentAuthor = view.author;
+      const currentDesc = view.description;
+      const currentImage = view.image;
 
       const fallback = createFallbackTexture(dataItem.id, currentTitle);
       const artMat = new THREE.MeshBasicMaterial({ map: fallback.tex });
@@ -1267,9 +1326,10 @@
         author: currentAuthor,
         description: currentDesc,
         image: currentImage,
-        quizUrl: dbItem.quiz_url || dataItem.quizUrl || '',
-        quizCount: Number(quizCounts[dataItem.id]) || 0,
-        videoUrl: dbItem.video_url || dataItem.videoUrl || '',
+        quizUrl: view.quizUrl,
+        quizCount: view.removed ? 0 : (Number(quizCounts[dataItem.id]) || 0),
+        removed: view.removed,
+        videoUrl: view.videoUrl,
         fallbackUrl: fallback.dataUrl,
         defaults: {
           title: dataItem.title,
@@ -1470,27 +1530,7 @@
           .select('title, author, description, image_url, quiz_url, video_url, status')
           .eq('id', info.id).maybeSingle();
         if (error) { console.warn('Không đọc được dữ liệu tranh:', error.message); return; }
-        if (!data || data.status === 'pending' || data.status === 'rejected') return;
-        const d = info.defaults || {};
-        info.title = data.title || d.title;
-        info.author = data.author || d.author;
-        info.description = data.description || d.description;
-        info.quizUrl = data.quiz_url || d.quizUrl || '';
-        info.videoUrl = data.video_url || d.videoUrl || '';
-        const newImage = data.image_url || d.image;
-        if (newImage !== info.image) {
-          info.image = newImage;
-          const mat = materialsMap.get(info.id);
-          if (mat) loadIntoMaterial(mat, newImage);
-        }
-        if (currentSelectedArtwork === info) {
-          $('m-title').innerText = info.title || '';
-          $('m-author').innerText = 'Tác giả: ' + (info.author || '');
-          $('m-desc').innerText = info.description || '';
-          setModalImage(info);
-          renderTasks(info);
-        }
-        refreshBadgeFor(info);
+        applyRow(info, data || null);
       } catch (e) { console.warn('Lỗi làm mới tranh:', e); }
     }
 
@@ -1673,76 +1713,56 @@
       const art = currentSelectedArtwork;
       if (!art) return;
       if (!isTeacherLoggedIn) { setStatus('Bạn cần đăng nhập giáo viên để gỡ tranh.', 'err'); return; }
-      if (!confirm(`Gỡ bỏ Tác phẩm #${art.id} ("${art.title}")?\n\nBài nộp và các câu hỏi bài tập của tranh này sẽ bị xóa khỏi hệ thống; ô này sẽ trống để học sinh nộp lại.`)) return;
+      if (!confirm(`Gỡ bỏ Tác phẩm #${art.id} ("${art.title}")?\n\nTranh, video, bài tập và câu hỏi của ô này sẽ bị gỡ khỏi phòng với mọi học sinh. Ô sẽ TRỐNG để học sinh nộp lại. (Thầy/cô vẫn có thể đặt lại tranh cho ô này bằng nút Thay ảnh.)`)) return;
 
       $('remove-btn').disabled = true;
       setStatus('Đang gỡ tranh...', '');
       const oldUrl = art.image;
 
-      // Bước 1: ô này có bài nộp trên hệ thống không?
-      const { data: found, error: findError } = await supabase
-        .from('artworks').select('id, image_url').eq('id', art.id);
-      if (findError) {
-        $('remove-btn').disabled = false;
-        setStatus('Không kiểm tra được ô này: ' + findError.message, 'err');
-        return;
-      }
-      if (!found || found.length === 0) {
-        $('remove-btn').disabled = false;
-        setStatus(`Ô #${art.id} chưa có bài nộp nào trên hệ thống: đây là tranh mặc định trong data.js nên không có gì để gỡ. Muốn đổi tranh này, hãy dùng nút "Thay ảnh tranh này".`, 'err');
-        return;
-      }
+      // Bước 1: lấy đường dẫn ảnh cũ (nếu là bài nộp) để dọn kho ảnh
+      let oldPath = oldUrl;
+      try {
+        const { data: found } = await supabase.from('artworks').select('id, image_url').eq('id', art.id);
+        if (found && found[0] && found[0].image_url) oldPath = found[0].image_url;
+      } catch (e) { /* bỏ qua */ }
 
-      // Bước 2: xóa bài nộp
-      const { data, error } = await supabase.from('artworks').delete().eq('id', art.id).select();
+      // Bước 2: đánh dấu ô là TRỐNG ('removed'). Áp dụng cho cả tranh mặc định trong data.js,
+      // nên học sinh sẽ không còn thấy tranh cũ; ô này vẫn cho học sinh nộp bài mới.
+      const { data, error } = await supabase.from('artworks').upsert({
+        id: art.id, title: 'Ô trống', author: '', description: null, image_url: null,
+        quiz_url: null, video_url: null, student_id: null, status: 'removed'
+      }).select();
       $('remove-btn').disabled = false;
-      if (error) { setStatus('Lỗi khi gỡ: ' + error.message, 'err'); return; }
+      if (error) { setStatus('Lỗi khi gỡ: ' + error.message + (/status|constraint|violates/i.test(error.message) ? ' (bạn đã chạy file supabase_remove_slot.sql chưa?)' : ''), 'err'); return; }
       if (!data || data.length === 0) {
-        setStatus('Ô này có bài nộp nhưng hệ thống từ chối xóa: tài khoản giáo viên chưa có quyền xóa. Hãy chạy file supabase_teacher.sql trong Supabase (SQL Editor), sau đó đăng xuất, đăng nhập lại và thử lại.', 'err');
+        setStatus('Hệ thống từ chối gỡ tranh: tài khoản giáo viên chưa có quyền. Hãy chạy file supabase_teacher.sql trong Supabase (SQL Editor), sau đó đăng xuất, đăng nhập lại và thử lại.', 'err');
         return;
       }
 
       // Dọn file ảnh cũ trong Storage (nếu lỗi cũng không sao)
       try {
         const marker = '/storage/v1/object/public/uploads/';
-        const i = oldUrl ? oldUrl.indexOf(marker) : -1;
+        const i = oldPath ? oldPath.indexOf(marker) : -1;
         if (i >= 0) {
-          const path = decodeURIComponent(oldUrl.slice(i + marker.length).split('?')[0]);
+          const path = decodeURIComponent(oldPath.slice(i + marker.length).split('?')[0]);
           await supabase.storage.from('uploads').remove([path]);
         }
       } catch (e) { console.warn('Không xóa được file ảnh cũ:', e); }
 
       // Câu hỏi bài tập gắn với tranh đã gỡ cũng được xóa
-      try { await supabase.from('quiz_questions').delete().eq('artwork_id', art.id); art.quizCount = 0; $('qcount').textContent = 0; } catch (e) { /* bỏ qua */ }
+      try { await supabase.from('quiz_questions').delete().eq('artwork_id', art.id); } catch (e) { /* bỏ qua */ }
 
-      // Trả tranh về nội dung mặc định trong data.js
-      const d = art.defaults || {};
-      art.title = d.title; art.author = d.author; art.description = d.description; art.image = d.image;
-      art.quizUrl = d.quizUrl || ''; art.videoUrl = d.videoUrl || '';
-      delete dynamicArtworksData[art.id];
-
-      const fb = createFallbackTexture(art.id, d.title);
-      art.fallbackUrl = fb.dataUrl;
-      const mat = materialsMap.get(art.id);
-      if (mat) {
-        mat.map = fb.tex;           // hiện ngay tranh mặc định, tránh còn ảnh cũ nếu ảnh mặc định lỗi
-        mat.needsUpdate = true;
-        loadIntoMaterial(mat, d.image);
-      }
-
-      $('m-title').innerText = art.title || '';
-      $('m-author').innerText = 'Tác giả: ' + (art.author || '');
-      $('m-desc').innerText = art.description || '';
+      dynamicArtworksData[art.id] = data[0];
+      art._sig = null;
+      applyRow(art, data[0]);
+      $('qcount').textContent = 0;
       $('edit-title').value = art.title || '';
       $('edit-author').value = art.author || '';
       $('edit-desc').value = art.description || '';
-      $('edit-video').value = art.videoUrl;
-      $('edit-quiz').value = art.quizUrl;
-      setModalImage(art);
-      renderTasks(art);
-      refreshBadgeFor(art);
+      $('edit-video').value = '';
+      $('edit-quiz').value = '';
       updateProgressHud();
-      setStatus(`✅ Đã gỡ Tác phẩm #${art.id}. Ô này đã trống để học sinh nộp lại.`, 'ok');
+      setStatus(`✅ Đã gỡ Tác phẩm #${art.id}. Ô này đã TRỐNG với mọi học sinh (học sinh đang trong phòng sẽ thấy trong khoảng 30 giây) và có thể nộp bài mới.`, 'ok');
     };
 
     // ---------- Hiển thị chữ + công thức ($...$) bằng KaTeX ----------
