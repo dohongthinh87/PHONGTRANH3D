@@ -1837,25 +1837,44 @@
         $('quiz-submit').textContent = done < total ? `✅ Nộp bài (đã trả lời ${done}/${total})` : '✅ Nộp bài';
       }
     }
+    // Trộn câu hỏi và đáp án cho từng em, từng lần làm. Máy chủ chấm theo số thứ tự GỐC của đáp án,
+    // nên trộn chỉ là thay đổi cách hiển thị (không ảnh hưởng điểm). Xem trước của giáo viên giữ nguyên thứ tự gốc.
+    function shuffled(arr) {
+      const a = arr.slice();
+      const rnd = (n) => {
+        if (window.crypto && crypto.getRandomValues) { const b = new Uint32Array(1); crypto.getRandomValues(b); return b[0] % n; }
+        return Math.floor(Math.random() * n);
+      };
+      for (let i = a.length - 1; i > 0; i--) { const j = rnd(i + 1); [a[i], a[j]] = [a[j], a[i]]; }
+      return a;
+    }
+    function buildQuizView(questions, doShuffle) {
+      const items = questions.map((q) => ({ q, perm: q.options.map((_, i) => i) }));
+      if (!doShuffle) return items;
+      items.forEach((it) => { it.perm = shuffled(it.perm); });
+      return shuffled(items);
+    }
+
     function renderQuiz() {
-      const { questions } = quizState;
+      if (!quizState.view) quizState.view = buildQuizView(quizState.questions, !quizState.preview && !window.__noShuffle);
       $('quiz-title').textContent = '📝 Bài tập: ' + (quizState.art.title || ('Tranh #' + quizState.art.id));
       $('quiz-sub').textContent = quizState.preview
-        ? '👁 Chế độ xem trước của giáo viên: điểm không được lưu.'
-        : 'Chọn một đáp án cho mỗi câu, rồi bấm "Nộp bài". Làm sai có thể làm lại.';
+        ? '👁 Chế độ xem trước của giáo viên (thứ tự gốc; học sinh sẽ thấy câu hỏi và đáp án được trộn): điểm không được lưu.'
+        : 'Chọn một đáp án cho mỗi câu, rồi bấm "Nộp bài". Mỗi lần làm, thứ tự câu hỏi và đáp án sẽ khác nhau.';
       $('quiz-score').style.display = 'none';
       $('quiz-error').textContent = '';
       $('quiz-submit').style.display = ''; $('quiz-retry').style.display = 'none'; $('quiz-reveal').style.display = 'none';
       const body = $('quiz-body');
       body.innerHTML = '';
-      questions.forEach((q, qi) => {
-        const card = document.createElement('div'); card.className = 'q-card'; card.dataset.qid = q.id;
+      quizState.view.forEach(({ q, perm }, qi) => {
+        const card = document.createElement('div'); card.className = 'q-card'; card.dataset.qid = q.id; card._perm = perm;
         const t = document.createElement('div'); t.className = 'q-text'; fillRich(t, `Câu ${qi + 1}. ${q.question}`);
         card.appendChild(t);
-        q.options.forEach((opt, oi) => {
+        perm.forEach((oi, di) => {            // di = vị trí hiển thị, oi = số thứ tự gốc của đáp án (gửi lên máy chủ)
+          const opt = q.options[oi];
           const lab = document.createElement('label'); lab.className = 'q-opt';
           const r = document.createElement('input'); r.type = 'radio'; r.name = 'qa' + q.id; r.value = String(oi);
-          const sp = document.createElement('span'); fillRich(sp, `${'ABCD'[oi]}. ${opt}`);
+          const sp = document.createElement('span'); fillRich(sp, `${'ABCD'[di]}. ${opt}`);
           r.addEventListener('change', () => {
             quizState.answers[q.id] = oi;
             card.querySelectorAll('.q-opt').forEach((l) => l.classList.remove('sel'));
@@ -1900,7 +1919,7 @@
         const st = await supabase.rpc('quiz_state', { p_visit: visitId, p_artwork: art.id });
         locked = !!(st.data && st.data.revealed);
       }
-      quizState = { art, questions, preview, answers: {}, submitted: false, locked, lastResult: null };
+      quizState = { art, questions, preview, answers: {}, submitted: false, locked, lastResult: null, view: null };
       trackEvent(art.id, 'quiz');
       renderQuiz();
       $('quiz-modal').style.display = 'flex';
@@ -1946,7 +1965,9 @@
         if (!r) return;
         card.classList.remove('right', 'wrong');
         card.classList.add(r.is_correct ? 'right' : 'wrong');
-        card.querySelectorAll('.q-opt').forEach((lab, oi) => {
+        const perm = card._perm || [];
+        card.querySelectorAll('.q-opt').forEach((lab, di) => {
+          const oi = perm.length ? perm[di] : di;           // số thứ tự gốc của đáp án đang hiển thị ở vị trí di
           lab.classList.add('locked'); lab.classList.remove('sel', 'ok', 'bad');
           const inp = lab.querySelector('input'); inp.disabled = true; inp.checked = (oi === r.selected);
           if (oi === r.correct_index) lab.classList.add('ok');
@@ -1954,7 +1975,7 @@
         });
         card.querySelectorAll('.q-explain').forEach((x) => x.remove());
         const ex = document.createElement('div'); ex.className = 'q-explain';
-        fillRich(ex, (r.is_correct ? '✅ Chính xác!' : (r.selected === null ? '⚠ Em chưa chọn đáp án.' : `❌ Chưa đúng. Đáp án đúng là ${'ABCD'[r.correct_index]}.`))
+        fillRich(ex, (r.is_correct ? '✅ Chính xác!' : (r.selected === null ? '⚠ Em chưa chọn đáp án.' : `❌ Chưa đúng. Đáp án đúng là ${'ABCD'[perm.length ? perm.indexOf(r.correct_index) : r.correct_index]}.`))
           + (r.explanation ? ' ' + r.explanation : ''));
         card.appendChild(ex);
       });
@@ -2131,7 +2152,7 @@
         ta.value = it.question; ta.addEventListener('input', () => { it.question = ta.value; updatePreview(); }); track(ta);
         card.append(head, ta);
         const hint = document.createElement('div'); hint.className = 'qe-hint';
-        hint.textContent = 'Chọn nút tròn bên trái đáp án đúng. Để trống đáp án C, D nếu chỉ cần 2 đáp án (ví dụ Đúng / Sai).';
+        hint.textContent = 'Chọn nút tròn bên trái đáp án đúng. Để trống đáp án C, D nếu chỉ cần 2 đáp án. Lưu ý: học sinh thấy câu hỏi và đáp án được TRỘN, nên đừng viết "đáp án A", "cả A và B", "tất cả các đáp án trên" trong đề.';
         card.appendChild(hint);
         for (let k = 0; k < 4; k++) {
           const row = document.createElement('div'); row.className = 'qe-opt';
