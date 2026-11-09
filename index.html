@@ -1455,7 +1455,8 @@
       const items = [`${p.view ? '✅' : '⬜'} Xem tranh`];
       if (video) items.push(`${p.video ? '✅' : '⬜'} Xem video`);
       if (inq) {
-        items.push(`${p.done ? '✅' : (p.quiz ? '🟡' : '⬜')} Làm bài tập trắc nghiệm (${art.quizCount} câu)`);
+        items.push(p.revealed ? `🔒 Bài tập trắc nghiệm (${art.quizCount} câu): em đã xem đáp án nên không làm lại được`
+          : `${p.done ? '✅' : (p.quiz ? '🟡' : '⬜')} Làm bài tập trắc nghiệm (${art.quizCount} câu)`);
       } else if (link) {
         items.push(`${p.done ? '✅' : (p.quiz ? '🟡' : '⬜')} Làm bài tập${p.quiz && !p.done ? ' (đã mở: làm xong rồi bấm nút báo bên dưới)' : ''}`);
       }
@@ -1463,7 +1464,7 @@
       $('task-list').innerHTML = items.map((t) => `<li>${t}</li>`).join('');   // chuỗi cố định (lỗi đã bỏ ký tự đặc biệt)
       $('btn-video').style.display = video ? 'block' : 'none';
       $('btn-inquiz').style.display = (inq || qerr) ? 'block' : 'none';
-      $('btn-inquiz').textContent = (qerr && !inq) ? '🔄 Tải lại bài tập' : isTeacherLoggedIn ? `👁 Xem trước bài tập (${art.quizCount} câu)`
+      $('btn-inquiz').textContent = (qerr && !inq) ? '🔄 Tải lại bài tập' : (p.revealed && !isTeacherLoggedIn) ? '🔒 Xem lại kết quả (đã xem đáp án)' : isTeacherLoggedIn ? `👁 Xem trước bài tập (${art.quizCount} câu)`
         : (p.revealed ? '👁 Xem lại kết quả bài tập' : (p.done ? '🔁 Làm lại bài tập' : `📝 Làm bài tập ngay (${art.quizCount} câu)`));
       // Chỉ MỘT nút làm bài: có câu hỏi trong phòng thì dùng nút đó, ngược lại mới dùng nút mở link ngoài
       $('btn-quiz').style.display = (link && !inq) ? 'block' : 'none';
@@ -1523,6 +1524,21 @@
       refreshBadgeFor(info);
     }
 
+    // Hỏi máy chủ em này đã làm / đã xem đáp án bài tập của tranh chưa (đúng cả khi đổi điện thoại hoặc tải lại trang)
+    async function syncQuizState(info) {
+      if (isTeacherLoggedIn || !visitId || !(info.quizCount > 0)) return;
+      try {
+        const { data, error } = await supabase.rpc('quiz_state', { p_visit: visitId, p_artwork: info.id });
+        if (error || !data) return;
+        const p = progress[info.id] || (progress[info.id] = {});
+        p.revealed = !!data.revealed;
+        if (data.attempts > 0) p.done = true;
+        store.set(PROGRESS_KEY, progress);
+        if (currentSelectedArtwork === info) renderTasks(info);
+        updateProgressHud();
+      } catch (e) { /* bỏ qua */ }
+    }
+
     async function refreshArtworkFromServer(info) {
       try {
         await refreshQuizCount(info);
@@ -1531,6 +1547,7 @@
           .eq('id', info.id).maybeSingle();
         if (error) { console.warn('Không đọc được dữ liệu tranh:', error.message); return; }
         applyRow(info, data || null);
+        await syncQuizState(info);
       } catch (e) { console.warn('Lỗi làm mới tranh:', e); }
     }
 
