@@ -224,9 +224,9 @@ function updateChosen() {
 async function loadSlots() {
   let taken = new Set();
   try {
-    const { data, error } = await supabase.from(TABLE).select('id');
+    const { data, error } = await supabase.from(TABLE).select('id, status');
     if (error) throw error;
-    taken = new Set((data || []).map((r) => Number(r.id)));
+    taken = new Set((data || []).filter((r) => r.status !== 'removed').map((r) => Number(r.id)));   // ô đã gỡ = còn trống
   } catch (e) {
     console.warn('Không đọc được danh sách ô đã dùng:', e);
   }
