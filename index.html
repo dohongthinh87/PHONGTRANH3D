@@ -295,6 +295,7 @@
       <input type="text" id="w-code" maxlength="20" placeholder="Mã số học sinh (ví dụ: K7M2PX)" autocomplete="off" autocapitalize="characters" spellcheck="false" style="text-transform:uppercase; letter-spacing:3px; text-align:center; font-weight:700;">
       <label class="consent"><input type="checkbox" id="w-consent"> <span>Em đồng ý để giáo viên xem tên, lớp và thời gian em vào phòng tranh. Thông tin chỉ dùng cho việc học.</span></label>
       <div class="err-text" id="w-error" role="alert"></div>
+      <div id="w-guard-note" style="display:none;margin-top:8px;font-size:13px;line-height:1.5;color:#b45309;background:#fff7e6;border:1px solid #f5d79b;border-radius:8px;padding:8px 10px"></div>
       <div class="row"><button id="w-enter">🚪 Vào phòng tranh</button></div>
       <div class="row"><button id="w-teacher" class="link-btn" type="button">Tôi là giáo viên</button></div>
     </div>
@@ -352,6 +353,16 @@
           <tbody id="results-body"></tbody>
         </table>
       </div>
+    </div>
+  </div>
+
+  <!-- Bị thoát khỏi phòng vì rời tab -->
+  <div id="kick-modal" style="display:none;position:fixed;inset:0;z-index:600;background:rgba(10,12,20,.96);color:#fff;align-items:center;justify-content:center;padding:24px;text-align:center">
+    <div style="max-width:420px">
+      <div style="font-size:46px">🚪</div>
+      <h2 style="margin:8px 0">Em đã bị thoát khỏi phòng tranh</h2>
+      <p style="line-height:1.6;color:#d6dbe8">Em đã chuyển sang tab hoặc ứng dụng khác trong lúc đang ở phòng tranh. Để vào lại, em hãy nhập lại mã số của mình.</p>
+      <button id="kick-reenter" style="margin-top:12px;padding:13px 26px;border:0;border-radius:10px;background:#1a73e8;color:#fff;font-size:16px;font-weight:700;cursor:pointer">Nhập lại mã số để vào phòng</button>
     </div>
   </div>
 
@@ -422,6 +433,7 @@
           <button id="roster-csv">⬇ Xuất danh sách (CSV)</button>
           <button id="roster-print">🖨 In phiếu mã số</button>
           <span>Số tranh tối đa mỗi em: <input type="number" id="roster-limit" min="0" max="50" value="1"> <button id="roster-limit-save">Lưu</button> <small>(0 = không giới hạn)</small></span>
+          <span>Học sinh rời tab: <select id="tab-guard"><option value="off">Cho phép (tắt)</option><option value="0">Thoát khỏi phòng ngay</option><option value="5">Thoát nếu rời quá 5 giây</option><option value="15">Thoát nếu rời quá 15 giây</option><option value="30">Thoát nếu rời quá 30 giây</option></select> <button id="tab-guard-save">Lưu</button></span>
         </div>
         <div id="roster-msg" role="status" aria-live="polite"></div>
       </div>
@@ -638,6 +650,58 @@
       } catch (e) { /* bỏ qua */ }
     });
 
+    // ---------- Chống rời tab ----------
+    // Học sinh chuyển sang tab / ứng dụng khác (trang bị ẩn) quá số giây giáo viên cho phép thì bị thoát khỏi phòng.
+    // Mở link video / bài tập do chính nút của phòng tranh thì được miễn một lần.
+    let tabGuard = 5;                 // -1 = tắt, 0 = thoát ngay, n = giây được phép rời đi
+    let hiddenAt = 0, awayExempt = false, kickTimer = null;
+    async function loadTabGuard() {
+      try {
+        const { data, error } = await supabase.rpc('get_tab_guard');
+        if (!error && typeof data === 'number') tabGuard = data;
+      } catch (e) { /* giữ mức mặc định */ }
+      const note = $('w-guard-note');
+      if (note) note.style.display = tabGuard >= 0 ? 'block' : 'none';
+      if (note && tabGuard >= 0) note.textContent = tabGuard === 0
+        ? '⚠ Lưu ý: nếu em chuyển sang tab hoặc ứng dụng khác, em sẽ bị thoát khỏi phòng tranh.'
+        : `⚠ Lưu ý: nếu em rời khỏi trang này quá ${tabGuard} giây (chuyển tab hoặc ứng dụng khác), em sẽ bị thoát khỏi phòng tranh.`;
+    }
+    function kickOut() {
+      if (!visitId || isTeacherLoggedIn) return;
+      const id = visitId;
+      try {
+        fetch(`${SUPABASE_URL}/rest/v1/rpc/visit_kick`, {
+          method: 'POST', keepalive: true,
+          headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ p_visit: id })
+        });
+      } catch (e) { /* bỏ qua */ }
+      visitId = null; progress = {};
+      store.set(VISIT_KEY, null); store.set(PROGRESS_KEY, null);
+      ['modal', 'quiz-modal'].forEach((m) => { const el = $(m); if (el) el.style.display = 'none'; });
+      quizState = null;
+      resetVideo();
+      currentSelectedArtwork = null;
+      updateProgressHud();
+      $('kick-modal').style.display = 'flex';
+    }
+    $('kick-reenter').addEventListener('click', () => location.reload());
+    document.addEventListener('visibilitychange', () => {
+      if (!visitId || isTeacherLoggedIn) return;
+      if (document.visibilityState === 'hidden') {
+        hiddenAt = Date.now();
+        clearTimeout(kickTimer);
+        if (tabGuard < 0 || awayExempt) return;
+        if (tabGuard === 0) kickOut();
+        else kickTimer = setTimeout(() => { if (document.visibilityState === 'hidden' && !awayExempt) kickOut(); }, tabGuard * 1000);
+      } else {
+        clearTimeout(kickTimer);
+        const away = hiddenAt ? Date.now() - hiddenAt : 0;     // điện thoại có thể tạm dừng bộ đếm nên kiểm tra lại khi quay về
+        if (hiddenAt && tabGuard >= 0 && !awayExempt && away >= tabGuard * 1000) kickOut();
+        awayExempt = false; hiddenAt = 0;
+      }
+    });
+
     // Vào phòng bằng MÃ SỐ do giáo viên cấp. Việc kiểm tra mã làm ở phía Supabase (hàm start_visit),
     // tên và lớp lấy từ danh sách của giáo viên nên học sinh không tự gõ / giả tên được.
     async function enterRoom() {
@@ -648,6 +712,7 @@
       $('w-error').textContent = '';
       $('w-enter').disabled = true;
 
+      await loadTabGuard();
       const id = newId();
       const { data, error } = await supabase.rpc('start_visit', { p_code: code, p_visit: id });
       $('w-enter').disabled = false;
@@ -666,7 +731,7 @@
       $('welcome-modal').style.display = 'none';
       updateProgressHud();
       sendBeat();
-      showToast(`Chào ${name}! Hãy xem tranh, xem video và làm bài tập của từng tranh nhé.`, 8000);
+      showToast(`Chào ${name}! Hãy xem tranh, xem video và làm bài tập của từng tranh nhé.` + (tabGuard >= 0 ? ' Đừng chuyển sang tab khác nhé, em sẽ bị thoát khỏi phòng.' : ''), 8000);
     }
     $('w-enter').addEventListener('click', enterRoom);
     $('w-code').addEventListener('keydown', (e) => { if (e.key === 'Enter') enterRoom(); });
@@ -711,7 +776,8 @@
           const r = payload.new || {};
           if (!r.left_at) return;   // chỉ báo khi học sinh rời phòng (các lần "báo còn ở trong phòng" thì bỏ qua)
           const secs = (new Date(r.left_at) - new Date(r.entered_at)) / 1000;
-          showToast(`👋 ${r.student_name || 'Một học sinh'}${r.class_name ? ' (' + r.class_name + ')' : ''} đã rời phòng tranh. Thời gian tham gia: ${fmtDuration(secs)}.`, 10000);
+          const who = `${r.student_name || 'Một học sinh'}${r.class_name ? ' (' + r.class_name + ')' : ''}`;
+          showToast(r.left_reason === 'tab' ? `⚠ ${who} đã bị thoát khỏi phòng vì chuyển sang tab khác. Thời gian tham gia: ${fmtDuration(secs)}.` : `👋 ${who} đã rời phòng tranh. Thời gian tham gia: ${fmtDuration(secs)}.`, 10000);
           if ($('visits-modal').style.display === 'flex') loadVisits();
         })
         .subscribe();
@@ -796,7 +862,7 @@
     function durationText(r) {
       if (!r.last_seen && !r.left_at) return '—';
       if (isOnline(r)) return `🟢 ${fmtDuration((Date.now() - new Date(r.entered_at).getTime()) / 1000)} (đang trong phòng)`;
-      return fmtDuration(r.duration_seconds);
+      return fmtDuration(r.duration_seconds) + (r.left_reason === 'tab' ? ' · ⚠ bị thoát vì rời tab' : '');
     }
 
     // Tự làm mới bảng nhật ký mỗi 30 giây khi đang mở (trừ lúc đang xem chi tiết một học sinh)
@@ -992,6 +1058,8 @@
 
       const { data: st } = await supabase.from('room_settings').select('value').eq('key', 'max_per_student').maybeSingle();
       if (st && /^[0-9]+$/.test(st.value)) $('roster-limit').value = st.value;
+      const { data: tg } = await supabase.from('room_settings').select('value').eq('key', 'tab_guard').maybeSingle();
+      $('tab-guard').value = tg && ['off', '0', '5', '15', '30'].includes(tg.value) ? tg.value : '5';
 
       rosterRows.forEach((r) => {
         const tr = document.createElement('tr');
@@ -1069,6 +1137,13 @@
       await loadRoster();
       rosterMsg(`Đã xóa ${r.full_name}.`, 'ok');
     }
+
+    $('tab-guard-save').addEventListener('click', async () => {
+      const v = $('tab-guard').value;
+      const { error } = await supabase.from('room_settings').upsert([{ key: 'tab_guard', value: v }]);
+      rosterMsg(error ? 'Lỗi: ' + error.message : (v === 'off' ? '✅ Đã tắt chống rời tab: học sinh được phép chuyển tab.'
+        : v === '0' ? '✅ Học sinh rời tab sẽ bị thoát khỏi phòng ngay.' : `✅ Học sinh rời tab quá ${v} giây sẽ bị thoát khỏi phòng.`), error ? 'err' : 'ok');
+    });
 
     $('roster-limit-save').addEventListener('click', async () => {
       const v = String($('roster-limit').value).trim();
@@ -1487,6 +1562,7 @@
         f.allowFullscreen = true;
         $('video-wrap').appendChild(f);
       } else {
+        awayExempt = true;
         window.open(url, '_blank', 'noopener');
       }
       trackEvent(art.id, 'video');
@@ -1498,6 +1574,7 @@
       if (!art) return;
       const url = safeUrl(art.quizUrl);
       if (!url) return;
+      awayExempt = true;
       window.open(url, '_blank', 'noopener');
       if (art.quizCount > 0) { (progress[art.id] || (progress[art.id] = {})).extra = true; store.set(PROGRESS_KEY, progress); }
       else trackEvent(art.id, 'quiz');
@@ -2304,6 +2381,7 @@
     });
 
     // ---------- Khởi động: học sinh phải nhập tên mới vào phòng ----------
+    loadTabGuard();
     (function boot() {
       const saved = store.get(VISIT_KEY);
       if (saved && saved.id) {
