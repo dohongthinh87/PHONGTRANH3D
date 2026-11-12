@@ -275,6 +275,7 @@
   <button id="visits-btn" onclick="openVisits()">📊 Nhật ký học sinh</button>
   <button id="roster-btn" onclick="openRoster()">👥 Học sinh và mã số</button>
 
+  <div id="net-banner" style="display:none;position:fixed;top:8px;left:50%;transform:translateX(-50%);z-index:150;background:#fff3cd;color:#664d03;border:1px solid #ffda6a;border-radius:20px;padding:6px 14px;font-size:13px;max-width:92vw;text-align:center;box-shadow:0 2px 10px rgba(0,0,0,.3)"></div>
   <div id="crosshair"></div>
   <div id="toast-wrap"></div>
 
@@ -530,9 +531,35 @@
     // Khóa anon (JWT) giống trang nộp bài. Đây là khóa công khai, KHÔNG dùng khóa service_role.
     const SUPABASE_URL = 'https://nnamdbcctgakutjuxrmt.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5uYW1kYmNjdGdha3V0anV4cm10Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM3Njk2NzQsImV4cCI6MjEwOTM0NTY3NH0.uKvaum7nu6G_GMr7d10ieSVkEQHS01tWygduJpPZ8VI';
+    // Mỗi yêu cầu chờ tối đa 20 giây (không treo mãi khi mạng lớp học đang nghẽn)
+    const timeoutFetch = (url, opts = {}) => {
+      const ctl = new AbortController();
+      const t = setTimeout(() => ctl.abort(), 20000);
+      if (opts.signal) opts.signal.addEventListener('abort', () => ctl.abort());
+      return fetch(url, { ...opts, signal: ctl.signal }).finally(() => clearTimeout(t));
+    };
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-      auth: { persistSession: false, autoRefreshToken: true }
+      auth: { persistSession: false, autoRefreshToken: true },
+      global: { fetch: timeoutFetch }
     });
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+    const isTransient = (r) => !!(r && r.error) && (r.status >= 500 || r.status === 429 || r.status === 0 ||
+      /fetch|network|abort|timeout|timed out|load failed|overload|too many|temporar|502|503|504|520|522|524/i.test(String(r.error.message || '')));
+    // Tự thử lại khi mạng chậm / máy chủ bận (chỉ dùng cho yêu cầu an toàn khi gửi lại)
+    async function retry(fn, tries = 4) {
+      let r;
+      for (let i = 0; i < tries; i++) {
+        try { r = await fn(); } catch (e) { r = { data: null, error: { message: String((e && e.message) || e) }, status: 0 }; }
+        if (!isTransient(r)) return r;
+        if (i < tries - 1) await sleep(700 * Math.pow(1.8, i) + Math.random() * 600);
+      }
+      return r;
+    }
+    function showNet(msg) {
+      const b = $('net-banner');
+      if (!b) return;
+      b.textContent = msg || ''; b.style.display = msg ? 'block' : 'none';
+    }
 
     const $ = (id) => document.getElementById(id);
     const TZ = 'Asia/Ho_Chi_Minh';
@@ -618,7 +645,7 @@
       p[event] = true;
       store.set(PROGRESS_KEY, progress);
       updateProgressHud();
-      supabase.from('visit_events').insert([{ visit_id: visitId, artwork_id: artId, event }])
+      retry(() => supabase.from('visit_events').insert([{ visit_id: visitId, artwork_id: artId, event }]), 4)
         .then(({ error }) => {
           if (error) { console.warn('Không ghi được nhật ký:', error.message); p[event] = false; store.set(PROGRESS_KEY, progress); }
         });
@@ -636,7 +663,7 @@
       supabase.rpc('visit_heartbeat', { p_visit: visitId })
         .then(({ error }) => { if (error) console.warn('Không báo được thời lượng:', error.message); });
     }
-    setInterval(sendBeat, 60000);
+    (function beatLoop() { setTimeout(() => { sendBeat(); beatLoop(); }, 50000 + Math.random() * 20000); })();   // ~60 giây, lệch ngẫu nhiên
     document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') sendBeat(); });
     // Khi đóng trang: báo "đã rời phòng" để giáo viên thấy tổng thời lượng
     window.addEventListener('pagehide', () => {
@@ -655,11 +682,14 @@
     // Mở link video / bài tập do chính nút của phòng tranh thì được miễn một lần.
     let tabGuard = 5;                 // -1 = tắt, 0 = thoát ngay, n = giây được phép rời đi
     let hiddenAt = 0, awayExempt = false, kickTimer = null;
-    async function loadTabGuard() {
-      try {
-        const { data, error } = await supabase.rpc('get_tab_guard');
-        if (!error && typeof data === 'number') tabGuard = data;
-      } catch (e) { /* giữ mức mặc định */ }
+    async function loadTabGuard(known) {
+      if (typeof known === 'number') tabGuard = known;
+      else {
+        try {
+          const { data, error } = await retry(() => supabase.rpc('get_tab_guard'), 2);
+          if (!error && typeof data === 'number') tabGuard = data;
+        } catch (e) { /* giữ mức mặc định */ }
+      }
       const note = $('w-guard-note');
       if (note) note.style.display = tabGuard >= 0 ? 'block' : 'none';
       if (note && tabGuard >= 0) note.textContent = tabGuard === 0
@@ -712,12 +742,13 @@
       $('w-error').textContent = '';
       $('w-enter').disabled = true;
 
-      await loadTabGuard();
+      $('w-enter').textContent = 'Đang vào phòng...';
       const id = newId();
-      const { data, error } = await supabase.rpc('start_visit', { p_code: code, p_visit: id });
-      $('w-enter').disabled = false;
+      const { data, error } = await retry(() => supabase.rpc('start_visit', { p_code: code, p_visit: id }), 5);   // gửi lại cùng một mã lượt vào nên không bị trùng
+      $('w-enter').disabled = false; $('w-enter').textContent = '🚪 Vào phòng tranh';
       if (error) {
         if (/invalid_code/.test(error.message)) return fail('Mã số không đúng hoặc đã bị khóa. Hãy hỏi lại giáo viên.');
+        if (isTransient({ error, status: 0 })) return fail('Mạng đang bận nên chưa vào được phòng. Em bấm nút Vào phòng tranh thêm một lần nữa nhé.');
         return fail('Không vào được phòng: ' + error.message);
       }
       const name = (data && data.name) || 'bạn';
@@ -761,24 +792,41 @@
       }
     }
 
+    // Gộp thông báo: nhiều em vào/rời gần như cùng lúc thì hiện MỘT thông báo tóm tắt (không bị ngập 45 thông báo, 45 tiếng bíp)
+    const feedBuf = { in: [], out: [], kick: [] }; let feedTimer = null, reloadTimer = null;
+    function queueFeed(kind, who, at, secs) {
+      feedBuf[kind].push({ who, at, secs });
+      clearTimeout(feedTimer);
+      feedTimer = setTimeout(flushFeed, 1500);
+      clearTimeout(reloadTimer);
+      reloadTimer = setTimeout(() => { if ($('visits-modal').style.display === 'flex' && !document.querySelector('.v-detail')) (activeTab === 'results' ? loadResults() : loadVisits()); }, 3000);
+    }
+    const listNames = (a) => a.slice(0, 4).map((x) => x.who).join(', ') + (a.length > 4 ? ` và ${a.length - 4} em khác` : '');
+    function flushFeed() {
+      const { in: inn, out, kick } = feedBuf;
+      if (inn.length) {
+        const msg = inn.length === 1 ? `${inn[0].who} vừa vào phòng tranh lúc ${fmtTime(inn[0].at || new Date())}` : `${inn.length} học sinh vừa vào phòng tranh: ${listNames(inn)}`;
+        showToast('🔔 ' + msg, 10000); notifyNewVisit(msg);
+      }
+      if (out.length) showToast(out.length === 1 ? `👋 ${out[0].who} đã rời phòng tranh. Thời gian tham gia: ${fmtDuration(out[0].secs)}.` : `👋 ${out.length} học sinh đã rời phòng tranh: ${listNames(out)}.`, 10000);
+      if (kick.length) showToast(kick.length === 1 ? `⚠ ${kick[0].who} đã bị thoát khỏi phòng vì chuyển sang tab khác. Thời gian tham gia: ${fmtDuration(kick[0].secs)}.` : `⚠ ${kick.length} học sinh bị thoát vì chuyển tab: ${listNames(kick)}.`, 10000);
+      feedBuf.in = []; feedBuf.out = []; feedBuf.kick = [];
+    }
+
     let feed = null;
     function startFeed() {
       if (feed) return;
       feed = supabase.channel('visits-feed')
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'visits' }, (payload) => {
           const r = payload.new || {};
-          const msg = `${r.student_name || 'Một học sinh'}${r.class_name ? ' (' + r.class_name + ')' : ''} vừa vào phòng tranh lúc ${fmtTime(r.entered_at || new Date())}`;
-          showToast('🔔 ' + msg, 10000);
-          notifyNewVisit(msg);
-          if ($('visits-modal').style.display === 'flex') loadVisits();
+          queueFeed('in', `${r.student_name || 'Một học sinh'}${r.class_name ? ' (' + r.class_name + ')' : ''}`, r.entered_at);
         })
         .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'visits' }, (payload) => {
           const r = payload.new || {};
           if (!r.left_at) return;   // chỉ báo khi học sinh rời phòng (các lần "báo còn ở trong phòng" thì bỏ qua)
           const secs = (new Date(r.left_at) - new Date(r.entered_at)) / 1000;
           const who = `${r.student_name || 'Một học sinh'}${r.class_name ? ' (' + r.class_name + ')' : ''}`;
-          showToast(r.left_reason === 'tab' ? `⚠ ${who} đã bị thoát khỏi phòng vì chuyển sang tab khác. Thời gian tham gia: ${fmtDuration(secs)}.` : `👋 ${who} đã rời phòng tranh. Thời gian tham gia: ${fmtDuration(secs)}.`, 10000);
-          if ($('visits-modal').style.display === 'flex') loadVisits();
+          queueFeed(r.left_reason === 'tab' ? 'kick' : 'out', who, null, secs);
         })
         .subscribe();
     }
@@ -1229,26 +1277,48 @@
     let quizCounts = {};            // { [idTranh]: số câu hỏi trắc nghiệm }
 
     // Tải dữ liệu bài nộp từ Supabase
+    // Lấy dữ liệu tranh từ máy chủ: ưu tiên 1 yêu cầu duy nhất (gallery_boot); máy chủ cũ thì dùng cách cũ
+    async function fetchServerData() {
+      const r = await supabase.rpc('gallery_boot');
+      if (!r.error && r.data && Array.isArray(r.data.artworks)) return { rows: r.data.artworks, counts: r.data.quiz_counts || {}, guard: r.data.tab_guard };
+      if (isTransient(r)) throw new Error(r.error.message);
+      const a = await supabase.from('artworks').select('*');
+      if (a.error) throw new Error(a.error.message);
+      const q = await supabase.rpc('quiz_counts');
+      return { rows: a.data || [], counts: (q.data && typeof q.data === 'object') ? q.data : {}, guard: null };
+    }
+    let serverDataLoaded = false;
+    function applyServerData(d) {
+      d.rows.forEach((item) => {
+        if (item.status === 'pending' || item.status === 'rejected') { delete dynamicArtworksData[item.id]; return; }
+        dynamicArtworksData[item.id] = item;      // gồm cả ô 'removed' (đã gỡ = ô trống)
+      });
+      quizCounts = d.counts || {};
+      const byId = new Map(d.rows.map((r) => [Number(r.id), r]));
+      artworkMeshes.forEach((m) => {
+        const u = m.userData;
+        applyRow(u, byId.get(Number(u.id)));
+        const n = u.removed ? 0 : (Number(quizCounts[String(u.id)]) || 0);
+        if (n !== u.quizCount) { u.quizCount = n; refreshBadgeFor(u); if (currentSelectedArtwork === u) renderTasks(u); }
+      });
+      if (typeof d.guard === 'number') loadTabGuard(d.guard);
+      updateProgressHud();
+    }
+    // Phòng được dựng NGAY bằng tranh mặc định (không phải chờ mạng), rồi cập nhật khi có dữ liệu thật; mạng bận thì tự thử lại.
     async function fetchArtworksFromSupabase() {
-      try {
-        const { data, error } = await supabase.from('artworks').select('*');
-        if (error) {
-          console.warn('Không tải được dữ liệu từ Supabase:', error.message);
-        } else if (data) {
-          data.forEach((item) => {
-            if (item.status === 'pending' || item.status === 'rejected') return; // chưa duyệt thì ẩn
-            dynamicArtworksData[item.id] = item;   // gồm cả ô 'removed' (đã gỡ = ô trống)
-          });
-        }
-      } catch (e) {
-        console.warn('Lỗi kết nối Supabase:', e);
-      }
-      try {
-        const { data: qc } = await supabase.rpc('quiz_counts');
-        if (qc && typeof qc === 'object') quizCounts = qc;
-      } catch (e) { /* chưa có bài tập thì bỏ qua */ }
       buildGallery();
       updateProgressHud();
+      for (let i = 0; !serverDataLoaded; i++) {
+        try {
+          applyServerData(await fetchServerData());
+          serverDataLoaded = true;
+          showNet('');
+        } catch (e) {
+          console.warn('Chưa tải được dữ liệu tranh, sẽ thử lại:', e && e.message);
+          if (i >= 1) showNet('⏳ Mạng đang bận, đang tải tranh của các bạn… (thử lại lần ' + (i + 1) + ')');
+          await sleep(Math.min(10000, 1000 * Math.pow(1.7, i)) + Math.random() * 1000);
+        }
+      }
     }
 
     function createFallbackTexture(id, title) {
@@ -1268,12 +1338,47 @@
       return { tex, dataUrl: canvas.toDataURL('image/png') };
     }
 
+    // Tải ảnh tranh: tối đa 4 ảnh cùng lúc (không đổ dồn lên mạng) và thu nhỏ còn tối đa 1024px
+    // (768px trên điện thoại) để 50 tranh không làm tràn bộ nhớ máy.
+    const IMG_MAX = (navigator.maxTouchPoints > 0 || /Mobi|Android/i.test(navigator.userAgent)) ? 768 : 1024;
+    const imgQueue = []; let imgActive = 0;
+    function pumpImages() {
+      while (imgActive < 4 && imgQueue.length) {
+        const job = imgQueue.shift();
+        if (job.mat.userData.wantUrl !== job.url) continue;      // đã có ảnh mới hơn cho tranh này
+        imgActive++;
+        const done = () => { imgActive--; pumpImages(); };
+        texLoader.load(job.url, (tex) => {
+          try {
+            if (job.mat.userData.wantUrl === job.url) {
+              const img = tex.image, w = img && (img.naturalWidth || img.width), h = img && (img.naturalHeight || img.height);
+              let out = tex;
+              if (w && h && Math.max(w, h) > IMG_MAX) {
+                const k = IMG_MAX / Math.max(w, h);
+                const cv = document.createElement('canvas'); cv.width = Math.max(1, Math.round(w * k)); cv.height = Math.max(1, Math.round(h * k));
+                cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+                out = new THREE.CanvasTexture(cv); out.colorSpace = tex.colorSpace;
+                tex.dispose();
+              }
+              const old = job.mat.map;
+              job.mat.map = out; job.mat.needsUpdate = true;
+              if (old && old !== out && old.isTexture) old.dispose();
+            } else tex.dispose();
+          } catch (e) { console.warn('Lỗi xử lý ảnh:', e); }
+          done();
+        }, undefined, () => {
+          console.warn('Không tải được ảnh:', job.url);
+          done();
+          job.tries = (job.tries || 0) + 1;
+          if (job.tries < 4 && job.mat.userData.wantUrl === job.url) setTimeout(() => { imgQueue.push(job); pumpImages(); }, 2000 * job.tries + Math.random() * 3000);   // mạng bận: thử lại sau vài giây
+        });
+      }
+    }
     function loadIntoMaterial(mat, url) {
       if (!url) return;
-      texLoader.load(url, (tex) => {
-        mat.map = tex;
-        mat.needsUpdate = true;
-      }, undefined, () => { console.warn('Không tải được ảnh:', url); });
+      mat.userData.wantUrl = url;
+      imgQueue.push({ mat, url });
+      pumpImages();
     }
 
     // Nhãn nhỏ ▶ / 📝 ở góc tranh cho học sinh biết tranh nào có video / bài tập
@@ -1353,22 +1458,9 @@
 
     // Học sinh đang ở trong phòng: định kỳ cập nhật tranh bị đổi / bị gỡ (không cần tải lại trang)
     async function syncArtworks() {
-      try {
-        const { data, error } = await supabase.from('artworks')
-          .select('id, title, author, description, image_url, quiz_url, video_url, status');
-        if (error || !data) return;
-        const byId = new Map(data.map((r) => [Number(r.id), r]));
-        let changed = false;
-        artworkMeshes.forEach((m) => { if (applyRow(m.userData, byId.get(Number(m.userData.id)))) changed = true; });
-        const qc = await supabase.rpc('quiz_counts');
-        if (qc && qc.data && typeof qc.data === 'object') {
-          quizCounts = qc.data;
-          artworkMeshes.forEach((m) => { const u = m.userData; const n = u.removed ? 0 : (Number(quizCounts[String(u.id)]) || 0); if (n !== u.quizCount) { u.quizCount = n; changed = true; refreshBadgeFor(u); if (currentSelectedArtwork === u) renderTasks(u); } });
-        }
-        if (changed) updateProgressHud();
-      } catch (e) { console.warn('Không đồng bộ được tranh:', e); }
+      try { applyServerData(await fetchServerData()); } catch (e) { console.warn('Không đồng bộ được tranh:', e && e.message); }
     }
-    setInterval(() => { if (document.visibilityState === 'visible' && !isTeacherLoggedIn) syncArtworks(); }, 30000);
+    (function syncLoop() { setTimeout(() => { if (document.visibilityState === 'visible' && !isTeacherLoggedIn && visitId) syncArtworks(); syncLoop(); }, 25000 + Math.random() * 15000); })();   // ~30 giây, lệch ngẫu nhiên
     document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && !isTeacherLoggedIn) syncArtworks(); });
 
     function hangPainting(dataItem, x, y, z, rotY) {
@@ -1586,7 +1678,7 @@
     // Hỏi máy chủ tranh này có bao nhiêu câu hỏi. Nếu lỗi thì hiện rõ lỗi trong khung nhiệm vụ (không im lặng nữa).
     async function refreshQuizCount(info) {
       try {
-        const qc = await supabase.rpc('quiz_counts');
+        const qc = await retry(() => supabase.rpc('quiz_counts'), 3);
         if (qc.error) throw new Error(qc.error.message || 'lỗi không rõ');
         if (qc.data && typeof qc.data === 'object') {
           quizCounts = qc.data;
@@ -1605,7 +1697,7 @@
     async function syncQuizState(info) {
       if (isTeacherLoggedIn || !visitId || !(info.quizCount > 0)) return;
       try {
-        const { data, error } = await supabase.rpc('quiz_state', { p_visit: visitId, p_artwork: info.id });
+        const { data, error } = await retry(() => supabase.rpc('quiz_state', { p_visit: visitId, p_artwork: info.id }), 3);
         if (error || !data) return;
         const p = progress[info.id] || (progress[info.id] = {});
         p.revealed = !!data.revealed;
@@ -1995,7 +2087,7 @@
         questions = data;
       } else {
         if (!visitId) { showToast('Hãy nhập mã số để vào phòng trước nhé.'); return; }
-        const { data, error } = await supabase.rpc('get_quiz', { p_visit: visitId, p_artwork: art.id });
+        const { data, error } = await retry(() => supabase.rpc('get_quiz', { p_visit: visitId, p_artwork: art.id }), 4);
         if (error) {
           showToast('Không tải được bài tập: ' + quizError(error.message), 8000);
           if (/invalid_visit/.test(error.message)) { store.set(VISIT_KEY, null); store.set(PROGRESS_KEY, null); }
@@ -2010,7 +2102,7 @@
       }
       let locked = false;
       if (!preview) {
-        const st = await supabase.rpc('quiz_state', { p_visit: visitId, p_artwork: art.id });
+        const st = await retry(() => supabase.rpc('quiz_state', { p_visit: visitId, p_artwork: art.id }), 3);
         locked = !!(st.data && st.data.revealed);
       }
       quizState = { art, questions, preview, answers: {}, submitted: false, locked, lastResult: null, view: null };
@@ -2086,7 +2178,7 @@
       if (quizState.preview) { if (quizState.lastResult) applyReveal(quizState.lastResult, false); return; }
       if (!auto && !confirm('Sau khi xem đáp án, em sẽ KHÔNG được làm lại bài tập này nữa. Em chắc chắn muốn xem đáp án?')) return;
       $('quiz-error').textContent = '';
-      const { data, error } = await supabase.rpc('reveal_quiz', { p_visit: visitId, p_artwork: art.id });
+      const { data, error } = await retry(() => supabase.rpc('reveal_quiz', { p_visit: visitId, p_artwork: art.id }), 4);
       if (error) { $('quiz-error').textContent = quizError(error.message); return; }
       quizState.locked = true;
       (progress[art.id] || (progress[art.id] = {})).revealed = true;
@@ -2381,7 +2473,7 @@
     });
 
     // ---------- Khởi động: học sinh phải nhập tên mới vào phòng ----------
-    loadTabGuard();
+    loadTabGuard(tabGuard);
     (function boot() {
       const saved = store.get(VISIT_KEY);
       if (saved && saved.id) {
